@@ -56,13 +56,14 @@ def index_pdfs(
     *,
     max_chars: int = 1200,
     overlap: int = 200,
+    max_pages: int | None = None,
 ) -> IndexingSummary:
     """Extract, chunk, and index all supplied PDF files."""
 
     pages: list[DocumentPage] = []
     for path in paths:
         logger.info("Extracting PDF pages from %s", path.name)
-        pages.extend(extract_pdf_pages(path))
+        pages.extend(extract_pdf_pages(path, max_pages=max_pages))
 
     chunks: list[DocumentChunk] = chunk_pages(
         pages,

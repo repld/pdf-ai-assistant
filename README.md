@@ -64,6 +64,12 @@ python -m ai_document_assistant --database data\assistant.db --pdf .\path\to\doc
 python -m ai_document_assistant --database data\assistant.db "What is the main idea?"
 ```
 
+For a small first experiment, limit indexing to the first few pages:
+
+```powershell
+python -m ai_document_assistant --database data\assistant.db --max-pages 3 --pdf "book.pdf" "What is the main idea?"
+```
+
 The example evaluation file is [data/evaluation.example.json](data/evaluation.example.json). Replace its placeholder chunk ID with a retrieved chunk ID, then run:
 
 ```powershell

@@ -40,8 +40,9 @@ To index a PDF and ask grounded questions:
 ```powershell
 python -m ai_document_assistant `
   --database data\assistant.db `
+  --max-pages 3 `
   --pdf "your-document.pdf" `
   "What is the main idea?"
 ```
 
-The first command uses the chat model. The second uses the embedding model while indexing and the chat model while answering.
+The `--max-pages 3` option keeps the first experiment small. The first command uses the chat model. The second uses the embedding model while indexing and the chat model while answering.

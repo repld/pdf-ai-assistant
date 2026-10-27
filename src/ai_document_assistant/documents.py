@@ -36,14 +36,20 @@ class DocumentChunk:
 def extract_pdf_pages(
     path: Path,
     *,
+    max_pages: int | None = None,
     reader_factory: Callable[[str], Any] = PdfReader,
 ) -> list[DocumentPage]:
     """Extract non-empty pages from a PDF while preserving page numbers."""
+
+    if max_pages is not None and max_pages <= 0:
+        raise ValueError("max_pages must be positive")
 
     reader = reader_factory(str(path))
     pages: list[DocumentPage] = []
 
     for page_number, page in enumerate(reader.pages, start=1):
+        if max_pages is not None and page_number > max_pages:
+            break
         text = (page.extract_text() or "").strip()
         if text:
             pages.append(

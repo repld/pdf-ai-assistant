@@ -35,6 +35,11 @@ def main(argv: list[str] | None = None) -> int:
         help="SQLite database for persistent chunks and vectors",
     )
     parser.add_argument(
+        "--max-pages",
+        type=int,
+        help="only read this many pages from each PDF for a smoke test",
+    )
+    parser.add_argument(
         "--evaluate",
         type=Path,
         help="JSON evaluation file; requires --database",
@@ -48,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             assistant = build_rag_assistant(database_path=args.database)
             if args.pdf:
-                summary = index_pdfs(assistant, args.pdf)
+                summary = index_pdfs(assistant, args.pdf, max_pages=args.max_pages)
             else:
                 summary = None
         except (ConfigurationError, DocumentError, OpenAIError, RuntimeError, ValueError) as error:
