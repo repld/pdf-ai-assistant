@@ -46,3 +46,14 @@ python -m ai_document_assistant `
 ```
 
 The `--max-pages 3` option keeps the first experiment small. The first command uses the chat model. The second uses the embedding model while indexing and the chat model while answering.
+
+You can select a specific range instead:
+
+```powershell
+python -m ai_document_assistant `
+  --database data\assistant.db `
+  --page-start 30 `
+  --page-end 32 `
+  --pdf "book.pdf" `
+  "What do these pages discuss?"
+```

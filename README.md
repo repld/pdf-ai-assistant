@@ -70,6 +70,12 @@ For a small first experiment, limit indexing to the first few pages:
 python -m ai_document_assistant --database data\assistant.db --max-pages 3 --pdf "book.pdf" "What is the main idea?"
 ```
 
+To index a specific page range, such as pages 30–32:
+
+```powershell
+python -m ai_document_assistant --database data\assistant.db --page-start 30 --page-end 32 --pdf "book.pdf" "What do these pages discuss?"
+```
+
 The example evaluation file is [data/evaluation.example.json](data/evaluation.example.json). Replace its placeholder chunk ID with a retrieved chunk ID, then run:
 
 ```powershell

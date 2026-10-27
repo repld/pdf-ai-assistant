@@ -40,6 +40,17 @@ def main(argv: list[str] | None = None) -> int:
         help="only read this many pages from each PDF for a smoke test",
     )
     parser.add_argument(
+        "--page-start",
+        type=int,
+        default=1,
+        help="first page to read from each PDF",
+    )
+    parser.add_argument(
+        "--page-end",
+        type=int,
+        help="last page to read from each PDF, inclusive",
+    )
+    parser.add_argument(
         "--evaluate",
         type=Path,
         help="JSON evaluation file; requires --database",
@@ -53,7 +64,13 @@ def main(argv: list[str] | None = None) -> int:
         try:
             assistant = build_rag_assistant(database_path=args.database)
             if args.pdf:
-                summary = index_pdfs(assistant, args.pdf, max_pages=args.max_pages)
+                summary = index_pdfs(
+                    assistant,
+                    args.pdf,
+                    max_pages=args.max_pages,
+                    page_start=args.page_start,
+                    page_end=args.page_end,
+                )
             else:
                 summary = None
         except (ConfigurationError, DocumentError, OpenAIError, RuntimeError, ValueError) as error:

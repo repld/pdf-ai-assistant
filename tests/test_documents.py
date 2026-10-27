@@ -55,6 +55,19 @@ def test_extract_pdf_pages_can_limit_pages_for_a_small_smoke_test() -> None:
     ]
 
 
+def test_extract_pdf_pages_can_select_a_page_range() -> None:
+    pages = extract_pdf_pages(
+        Path("guide.pdf"),
+        page_start=3,
+        page_end=3,
+        reader_factory=FakeReader,
+    )
+
+    assert pages == [
+        DocumentPage(source="guide.pdf", page_number=3, text="Second page"),
+    ]
+
+
 def test_chunk_pages_keeps_page_metadata_and_overlapping_windows() -> None:
     pages = [DocumentPage(source="guide.pdf", page_number=4, text="ABCDEFGHIJKL")]
 
