@@ -9,3 +9,6 @@ __pycache__/
 
 # Local reference books; do not commit copyrighted PDFs.
 *.pdf
+
+# Local vector indexes and evaluation databases.
+data/*.db
