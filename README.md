@@ -47,7 +47,7 @@ Start it from the project directory:
 streamlit run src\ai_document_assistant\ui.py
 ```
 
-On Windows, double-click `start-assistant.vbs` for a completely invisible launcher. It checks that `.venv` and `.env` exist, starts Streamlit through the companion `start-assistant.ps1` script in a hidden background window, and opens the browser interface without leaving a command window open. `start-assistant.bat` is also available if you want a visible troubleshooting window. The launcher supplies a blank response to Streamlit’s first-run email prompt.
+On Windows, double-click `start-assistant.vbs` for a completely invisible launcher. It checks that `.venv` and `.env` exist, starts Streamlit through the companion `start-assistant.ps1` script in a hidden background window, and opens the browser interface without leaving a command window open. The launcher supplies a blank response to Streamlit’s first-run email prompt.
 
 Streamlit opens a browser tab at a local address. Upload a PDF, wait for indexing to finish, and ask questions in the chat box. Answers display the source filename and page numbers. The interface keeps the current document and chat history in the browser session; restarting the app clears that session.
 
