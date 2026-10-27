@@ -112,6 +112,8 @@ See [docs/learning-plan.md](docs/learning-plan.md) for the high-level architectu
 
 See [docs/architecture.md](docs/architecture.md) for the complete data flow, module responsibilities, trade-offs, and current limitations.
 
+For a detailed beginner-friendly explanation of the code and self-check quiz, read [docs/learning-walkthrough.md](docs/learning-walkthrough.md).
+
 ## Continuous integration
 
 GitHub Actions runs the test suite and Ruff on pushes and pull requests. The repository intentionally excludes `.env`, local databases, virtual environments, and reference PDFs.
