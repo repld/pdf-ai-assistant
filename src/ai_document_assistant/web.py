@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from openai import OpenAIError
+from pydantic import BaseModel, Field
 
 from .application import build_rag_assistant
 from .documents import DocumentError, chunk_pages, extract_pdf_pages
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class AskRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1, max_length=4000)
 
 
 def create_app(assistant: Any | None = None) -> FastAPI:
@@ -45,7 +46,11 @@ def create_app(assistant: Any | None = None) -> FastAPI:
         if not question:
             raise HTTPException(status_code=400, detail="question must not be empty")
 
-        result = get_assistant().answer(question)
+        try:
+            result = get_assistant().answer(question)
+        except (OpenAIError, RuntimeError) as error:
+            logger.exception("The assistant failed to answer a question")
+            raise HTTPException(status_code=502, detail="AI provider request failed") from error
         return {
             "answer": result.answer,
             "citations": [

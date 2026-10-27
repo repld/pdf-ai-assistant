@@ -35,8 +35,11 @@ def test_evaluation_reports_retrieval_hit_rate_and_answer_rate() -> None:
     assert report.case_count == 2
     assert report.retrieval_hit_rate == 0.5
     assert report.answer_rate == 1.0
+    assert report.citation_rate == 0.5
     assert report.results[0].retrieval_hit is True
+    assert report.results[0].citations_present is True
     assert report.results[1].retrieval_hit is False
+    assert report.results[1].citations_present is False
 
 
 def test_load_cases_reads_json_file(tmp_path) -> None:

@@ -33,7 +33,7 @@ def build_rag_assistant(*, database_path: Path | None = None) -> RAGAssistant:
     client_kwargs = {"api_key": settings.api_key}
     if settings.base_url:
         client_kwargs["base_url"] = settings.base_url
-    client = OpenAI(**client_kwargs)
+    client = OpenAI(**client_kwargs, timeout=30.0, max_retries=2)
     store = None
     if database_path is not None:
         database_path.parent.mkdir(parents=True, exist_ok=True)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
@@ -10,6 +11,7 @@ from .documents import DocumentChunk
 from .retrieval import InMemoryVectorStore, VectorStore
 
 UNSUPPORTED_ANSWER = "I could not find an answer in the uploaded documents."
+_CITATION_PATTERN = re.compile(r"\[(\d+)\]")
 
 
 class Embedder(Protocol):
@@ -75,12 +77,32 @@ class RAGAssistant:
 
         context = [match.chunk for match in matches]
         answer = self._answerer.answer(question, context)
+        if answer.strip() == UNSUPPORTED_ANSWER:
+            return RAGAnswer(answer=UNSUPPORTED_ANSWER, citations=())
+        citation_indexes = _citation_indexes(answer, len(context))
+        if not citation_indexes:
+            return RAGAnswer(answer=UNSUPPORTED_ANSWER, citations=())
+
+        cited_context = [context[index - 1] for index in citation_indexes]
         citations = tuple(
             Citation(
                 chunk_id=chunk.chunk_id,
                 source=chunk.source,
                 page_number=chunk.page_number,
             )
-            for chunk in context
+            for chunk in cited_context
         )
         return RAGAnswer(answer=answer, citations=citations)
+
+
+def _citation_indexes(answer: str, context_count: int) -> list[int]:
+    """Return valid, unique 1-based source indexes from a model answer."""
+
+    indexes: list[int] = []
+    for match in _CITATION_PATTERN.finditer(answer):
+        index = int(match.group(1))
+        if index < 1 or index > context_count:
+            return []
+        if index not in indexes:
+            indexes.append(index)
+    return indexes

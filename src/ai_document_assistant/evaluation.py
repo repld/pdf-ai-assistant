@@ -50,6 +50,7 @@ class EvaluationResult:
     case_id: str
     retrieval_hit: bool
     answer_present: bool
+    citations_present: bool
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,14 @@ class EvaluationReport:
             return 0.0
         return sum(result.answer_present for result in self.results) / len(self.results)
 
+    @property
+    def citation_rate(self) -> float:
+        """Return the fraction of cases that produced at least one citation."""
+
+        if not self.results:
+            return 0.0
+        return sum(result.citations_present for result in self.results) / len(self.results)
+
 
 def evaluate(
     assistant: EvaluatedAssistant,
@@ -86,6 +95,7 @@ def evaluate(
                 case_id=case.case_id,
                 retrieval_hit=bool(actual_chunk_ids & case.expected_chunk_ids),
                 answer_present=bool(answer.answer.strip()),
+                citations_present=bool(answer.citations),
             )
         )
     return EvaluationReport(results=tuple(results))

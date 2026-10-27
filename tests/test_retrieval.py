@@ -103,6 +103,7 @@ def test_chat_completion_answerer_returns_openrouter_style_answer() -> None:
     call = client.chat.completions.calls[0]
     assert call["model"] == "deepseek/deepseek-v3.2"
     assert call["messages"][0]["role"] == "system"
+    assert "Every factual answer must cite" in call["messages"][0]["content"]
     assert "[1] guide.pdf, page 1" in call["messages"][1]["content"]
 
 

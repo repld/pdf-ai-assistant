@@ -10,9 +10,11 @@ from .documents import DocumentChunk
 DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
 GROUNDING_INSTRUCTIONS = (
     "Answer the question using only the supplied document excerpts. "
-    "If the excerpts do not support an answer, say that the answer was not found "
-    "in the uploaded documents. Cite supporting excerpts with their bracketed "
-    "source number, such as [1]."
+    "If the excerpts do not support an answer, say exactly: "
+    "'I could not find an answer in the uploaded documents.' "
+    "Every factual answer must cite one or more supporting excerpts with their "
+    "bracketed source number, such as [1]. Do not invent citations or discuss "
+    "information that is not in the excerpts."
 )
 
 

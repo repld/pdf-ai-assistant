@@ -89,6 +89,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Cases: {report.case_count}")
             print(f"Retrieval hit rate: {report.retrieval_hit_rate:.1%}")
             print(f"Answer rate: {report.answer_rate:.1%}")
+            print(f"Citation rate: {report.citation_rate:.1%}")
+            for result in report.results:
+                print(
+                    f"- {result.case_id}: retrieval={'yes' if result.retrieval_hit else 'no'}, "
+                    f"citations={'yes' if result.citations_present else 'no'}"
+                )
             return 0
 
         def ask_documents(question: str) -> str:

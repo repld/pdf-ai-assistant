@@ -139,7 +139,7 @@ I could not find an answer in the uploaded documents.
 
 That is an important reliability behavior. The assistant should not pretend that every question is answerable from the uploaded documents.
 
-`OpenAIAnswerer` tells the model to use only the retrieved excerpts and cite numbered sources. The application also returns structured citation metadata containing the source filename and page number.
+`OpenAIAnswerer` and `ChatCompletionAnswerer` tell the model to use only the retrieved excerpts and cite numbered sources. `RAGAssistant` validates those source numbers: an answer with no valid citation is replaced with the safe unsupported-answer response, and the API returns only the pages the model cited.
 
 ## 6. Persistence and evaluation
 
@@ -156,8 +156,9 @@ The evaluation module runs a fixed set of questions and reports:
 
 - Retrieval hit rate: did the answer cite an expected chunk?
 - Answer rate: did the system return non-empty text?
+- Citation rate: did the system return at least one valid citation?
 
-These are useful baseline metrics, but they do not prove that the answer is factually correct. A later evaluation system should also measure groundedness and answer quality.
+These are useful baseline metrics, but they do not prove that the answer is factually correct. A reference answer or human review is still needed for answer quality.
 
 ## 7. HTTP interface
 

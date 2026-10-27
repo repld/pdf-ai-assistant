@@ -4,6 +4,12 @@ An educational project that will grow into a document question-answering applica
 
 This repository is separate from the existing breast-cancer data project. It has its own Python package, tests, environment file, and Git history.
 
+## Current status
+
+The project now supports direct AI questions, PDF extraction, overlapping chunks, embeddings, cosine-similarity retrieval, SQLite persistence, grounded RAG answers, source-page citations, evaluation, a FastAPI interface, Docker configuration, and CI checks.
+
+The current reliability safeguards require model answers to include valid numbered citations. Answers without valid citations are replaced with the unsupported-document response.
+
 ## Milestone 1: one AI question
 
 The first milestone proves the smallest useful application loop:
@@ -16,7 +22,7 @@ The test uses a fake client, so it does not contact the API or incur usage costs
 
 ## Setup
 
-Requirements: Python 3.12+.
+Requirements: Python 3.12+. The project installs `pypdf` with its font-parsing extra so PDFs with embedded fonts have better text extraction.
 
 ```powershell
 python -m venv .venv
@@ -83,6 +89,19 @@ python -m ai_document_assistant --database data\assistant.db --evaluate data\eva
 ```
 
 Evaluation requests use embeddings and model calls, so they can incur API usage.
+
+The included Chapter 1 evaluation set covers pages 33–55 of the local Géron reference book:
+
+```powershell
+python -m ai_document_assistant `
+  --database ":memory:" `
+  --page-start 33 `
+  --page-end 55 `
+  --pdf "book.pdf" `
+  --evaluate data\chapter1-evaluation.json
+```
+
+The report includes retrieval hit rate, answer rate, citation rate, and one line per case. Use a small page range while learning because indexing and evaluation use API requests.
 
 ## HTTP interface
 

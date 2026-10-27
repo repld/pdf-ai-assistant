@@ -12,6 +12,11 @@ class FakeAssistant:
         )
 
 
+class FailingAssistant:
+    def answer(self, question: str) -> RAGAnswer:
+        raise RuntimeError("provider detail should not be exposed")
+
+
 def test_health_endpoint() -> None:
     client = TestClient(create_app(FakeAssistant()))
 
@@ -42,3 +47,20 @@ def test_ask_endpoint_rejects_blank_question() -> None:
 
     assert response.status_code == 400
     assert response.json() == {"detail": "question must not be empty"}
+
+
+def test_ask_endpoint_rejects_an_oversized_question() -> None:
+    client = TestClient(create_app(FakeAssistant()))
+
+    response = client.post("/ask", json={"question": "x" * 4001})
+
+    assert response.status_code == 422
+
+
+def test_ask_endpoint_hides_provider_errors() -> None:
+    client = TestClient(create_app(FailingAssistant()))
+
+    response = client.post("/ask", json={"question": "What is Python?"})
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "AI provider request failed"}
