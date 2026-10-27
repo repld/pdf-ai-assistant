@@ -19,6 +19,11 @@ dev = [
     "pytest>=8.3,<9",
     "ruff>=0.9,<1",
 ]
+web = [
+    "fastapi>=0.115,<1",
+    "python-multipart>=0.0.9,<1",
+    "uvicorn[standard]>=0.30,<1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

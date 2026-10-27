@@ -72,6 +72,32 @@ python -m ai_document_assistant --database data\assistant.db --evaluate data\eva
 
 Evaluation requests use embeddings and model calls, so they can incur API usage.
 
+## HTTP interface
+
+Install the web dependencies:
+
+```powershell
+python -m pip install -e ".[dev,web]"
+```
+
+Start the local API:
+
+```powershell
+uvicorn ai_document_assistant.web:app --reload
+```
+
+Endpoints:
+
+- `GET /health` — health check.
+- `POST /documents` — upload a PDF as multipart form field `file`.
+- `POST /ask` — JSON body such as `{"question": "What is the main idea?"}`.
+
+The same API can be started with Docker Compose after configuring `.env`:
+
+```powershell
+docker compose up --build
+```
+
 ## Milestone 2: robust interaction
 
 The second milestone adds input validation, missing-configuration errors, empty-response checks, API error handling, and a reusable interactive question loop. The tests still use fake clients and do not contact the API.
