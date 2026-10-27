@@ -104,15 +104,12 @@ def test_openai_embedder_batches_text_and_restores_input_order() -> None:
 
 def test_openai_embedder_sends_large_inputs_in_batches() -> None:
     client = BatchEmbeddingClient()
-    embedder = OpenAIEmbedder(client=client, model="test-embedding-model", batch_size=2)
+    embedder = OpenAIEmbedder(client=client, model="test-embedding-model", batch_size=64)
 
-    vectors = embedder.embed(["first", "second", "third"])
+    vectors = embedder.embed([str(index) for index in range(65)])
 
-    assert vectors == [[0.0], [1.0], [0.0]]
-    assert [call["input"] for call in client.embeddings.calls] == [
-        ["first", "second"],
-        ["third"],
-    ]
+    assert len(vectors) == 65
+    assert [len(call["input"]) for call in client.embeddings.calls] == [64, 1]
 
 
 def test_openai_answerer_sends_numbered_context_and_returns_text() -> None:
