@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 from .documents import DocumentChunk
 
@@ -15,6 +16,22 @@ class SearchResult:
 
     chunk: DocumentChunk
     score: float
+
+
+class VectorStore(Protocol):
+    def add(
+        self,
+        chunks: Sequence[DocumentChunk],
+        vectors: Sequence[Sequence[float]],
+    ) -> None: ...
+
+    def search(
+        self,
+        query_vector: Sequence[float],
+        *,
+        limit: int = 3,
+        min_score: float = 0.0,
+    ) -> list[SearchResult]: ...
 
 
 class InMemoryVectorStore:
@@ -56,15 +73,9 @@ class InMemoryVectorStore:
         if len(query_vector) != self._dimension:
             raise ValueError("query vector has the wrong dimension")
 
-        query_values = list(query_vector)
-        query_norm = math.sqrt(sum(value * value for value in query_values))
-        if query_norm == 0:
-            return []
-
         results = []
         for chunk, vector in self._items:
-            vector_norm = math.sqrt(sum(value * value for value in vector))
-            score = 0.0 if vector_norm == 0 else _dot(query_values, vector) / (query_norm * vector_norm)
+            score = cosine_similarity(query_vector, vector)
             if score >= min_score:
                 results.append(SearchResult(chunk=chunk, score=score))
 
@@ -72,5 +83,16 @@ class InMemoryVectorStore:
         return results[:limit]
 
 
-def _dot(left: Sequence[float], right: Sequence[float]) -> float:
-    return sum(left_value * right_value for left_value, right_value in zip(left, right, strict=True))
+def cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
+    """Return cosine similarity, treating a zero vector as unrelated."""
+
+    if len(left) != len(right):
+        raise ValueError("vectors must have the same dimension")
+
+    left_norm = math.sqrt(sum(value * value for value in left))
+    right_norm = math.sqrt(sum(value * value for value in right))
+    if left_norm == 0 or right_norm == 0:
+        return 0.0
+
+    dot = sum(left_value * right_value for left_value, right_value in zip(left, right, strict=True))
+    return dot / (left_norm * right_norm)

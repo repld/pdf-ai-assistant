@@ -10,6 +10,7 @@ from openai import OpenAI
 
 from .assistant import load_settings
 from .documents import DocumentChunk, DocumentPage, chunk_pages, extract_pdf_pages
+from .persistence import SQLiteVectorStore
 from .providers import OpenAIAnswerer, OpenAIEmbedder
 from .rag import RAGAnswer, RAGAssistant
 
@@ -22,14 +23,19 @@ class IndexingSummary:
     chunk_count: int
 
 
-def build_rag_assistant() -> RAGAssistant:
+def build_rag_assistant(*, database_path: Path | None = None) -> RAGAssistant:
     """Create the production adapters and an in-memory RAG assistant."""
 
     settings = load_settings()
     client = OpenAI(api_key=settings.api_key)
+    store = None
+    if database_path is not None:
+        database_path.parent.mkdir(parents=True, exist_ok=True)
+        store = SQLiteVectorStore(database_path)
     return RAGAssistant(
         embedder=OpenAIEmbedder(client=client, model=settings.embedding_model),
         answerer=OpenAIAnswerer(client=client, model=settings.model),
+        store=store,
     )
 
 

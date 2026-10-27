@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from .documents import DocumentChunk
-from .retrieval import InMemoryVectorStore
+from .retrieval import InMemoryVectorStore, VectorStore
 
 UNSUPPORTED_ANSWER = "I could not find an answer in the uploaded documents."
 
@@ -45,7 +45,7 @@ class RAGAssistant:
         *,
         embedder: Embedder,
         answerer: Answerer,
-        store: InMemoryVectorStore | None = None,
+        store: VectorStore | None = None,
         min_score: float = 0.2,
     ) -> None:
         self._embedder = embedder

@@ -12,6 +12,7 @@ from .application import build_rag_assistant, format_grounded_answer, index_pdfs
 from .assistant import ConfigurationError, ask_question
 from .cli import run_interactive
 from .documents import DocumentError
+from .evaluation import evaluate, load_cases
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,17 +29,45 @@ def main(argv: list[str] | None = None) -> int:
         default=[],
         help="PDF to index; repeat this option for multiple PDFs",
     )
+    parser.add_argument(
+        "--database",
+        type=Path,
+        help="SQLite database for persistent chunks and vectors",
+    )
+    parser.add_argument(
+        "--evaluate",
+        type=Path,
+        help="JSON evaluation file; requires --database",
+    )
     args = parser.parse_args(argv)
 
-    if args.pdf:
+    if args.evaluate and args.database is None:
+        parser.error("--evaluate requires --database")
+
+    if args.pdf or args.database or args.evaluate:
         try:
-            assistant = build_rag_assistant()
-            summary = index_pdfs(assistant, args.pdf)
+            assistant = build_rag_assistant(database_path=args.database)
+            if args.pdf:
+                summary = index_pdfs(assistant, args.pdf)
+            else:
+                summary = None
         except (ConfigurationError, DocumentError, OpenAIError, RuntimeError, ValueError) as error:
             print(f"Error: {error}", file=sys.stderr)
             return 1
 
-        print(f"Indexed {summary.page_count} pages into {summary.chunk_count} chunks.")
+        if summary is not None:
+            print(f"Indexed {summary.page_count} pages into {summary.chunk_count} chunks.")
+
+        if args.evaluate:
+            try:
+                report = evaluate(assistant, load_cases(args.evaluate))
+            except (OpenAIError, RuntimeError, TypeError, ValueError, KeyError) as error:
+                print(f"Error: {error}", file=sys.stderr)
+                return 1
+            print(f"Cases: {report.case_count}")
+            print(f"Retrieval hit rate: {report.retrieval_hit_rate:.1%}")
+            print(f"Answer rate: {report.answer_rate:.1%}")
+            return 0
 
         def ask_documents(question: str) -> str:
             return format_grounded_answer(assistant.answer(question))

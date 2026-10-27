@@ -57,6 +57,21 @@ python -m ai_document_assistant --pdf .\path\to\document.pdf "What is the main i
 
 Use `--pdf` more than once to index multiple documents. Indexing calls the embeddings API, and questions call the model API, so both activities can incur API usage.
 
+Persist the index in SQLite so it can be reused:
+
+```powershell
+python -m ai_document_assistant --database data\assistant.db --pdf .\path\to\document.pdf
+python -m ai_document_assistant --database data\assistant.db "What is the main idea?"
+```
+
+The example evaluation file is [data/evaluation.example.json](data/evaluation.example.json). Replace its placeholder chunk ID with a retrieved chunk ID, then run:
+
+```powershell
+python -m ai_document_assistant --database data\assistant.db --evaluate data\evaluation.json
+```
+
+Evaluation requests use embeddings and model calls, so they can incur API usage.
+
 ## Milestone 2: robust interaction
 
 The second milestone adds input validation, missing-configuration errors, empty-response checks, API error handling, and a reusable interactive question loop. The tests still use fake clients and do not contact the API.
