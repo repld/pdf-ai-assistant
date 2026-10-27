@@ -62,7 +62,7 @@ def test_openrouter_settings_use_openrouter_environment_variables(
     monkeypatch.setattr(assistant_module, "load_dotenv", lambda: None)
     monkeypatch.setenv("AI_PROVIDER", "openrouter")
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-    monkeypatch.setenv("OPENROUTER_MODEL", "openrouter/free")
+    monkeypatch.setenv("OPENROUTER_MODEL", "deepseek/deepseek-v3.2")
     monkeypatch.setenv("OPENROUTER_EMBEDDING_MODEL", "test-embedding")
 
     settings = load_settings()
@@ -70,7 +70,7 @@ def test_openrouter_settings_use_openrouter_environment_variables(
     assert settings.provider == "openrouter"
     assert settings.api_key == "test-key"
     assert settings.base_url == "https://openrouter.ai/api/v1"
-    assert settings.model == "openrouter/free"
+    assert settings.model == "deepseek/deepseek-v3.2"
     assert settings.embedding_model == "test-embedding"
 
 

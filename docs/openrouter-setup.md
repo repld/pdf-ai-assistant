@@ -15,7 +15,7 @@ Edit `.env`:
 ```text
 AI_PROVIDER=openrouter
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
-OPENROUTER_MODEL=openrouter/free
+OPENROUTER_MODEL=deepseek/deepseek-v3.2
 OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small
 ```
 
@@ -23,7 +23,7 @@ Create the API key in your OpenRouter dashboard. Never commit `.env` or paste th
 
 ## Models
 
-`openrouter/free` is convenient for learning, but free routing can have rate limits and changing model quality. When you want a stable portfolio demo, select a specific text model from the [OpenRouter model catalog](https://openrouter.ai/models) and put its provider/slug identifier in `OPENROUTER_MODEL`.
+`deepseek/deepseek-v3.2` is a specific, low-cost model suitable for this learning project. OpenRouter may route it through multiple providers, so check the model page for current pricing and availability before a final deployment.
 
 Embeddings are separate from answer generation. The example uses `openai/text-embedding-3-small`, which OpenRouter documents as an embeddings model. Embedding requests are billed according to the selected model, so indexing a large book may use credits.
 

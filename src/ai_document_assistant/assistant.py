@@ -35,7 +35,7 @@ def load_settings() -> Settings:
     if provider == "openrouter":
         api_key = os.getenv("OPENROUTER_API_KEY")
         base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-        model = os.getenv("OPENROUTER_MODEL", "openrouter/free")
+        model = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-v3.2")
         embedding_model = os.getenv(
             "OPENROUTER_EMBEDDING_MODEL",
             "openai/text-embedding-3-small",

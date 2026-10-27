@@ -95,13 +95,13 @@ def test_openai_answerer_sends_numbered_context_and_returns_text() -> None:
 
 def test_chat_completion_answerer_returns_openrouter_style_answer() -> None:
     client = FakeChatClient()
-    answerer = ChatCompletionAnswerer(client=client, model="openrouter/free")
+    answerer = ChatCompletionAnswerer(client=client, model="deepseek/deepseek-v3.2")
 
     answer = answerer.answer("What is Python?", [chunk("python", "Python is a language.")])
 
     assert answer == "Chat answer [1]"
     call = client.chat.completions.calls[0]
-    assert call["model"] == "openrouter/free"
+    assert call["model"] == "deepseek/deepseek-v3.2"
     assert call["messages"][0]["role"] == "system"
     assert "[1] guide.pdf, page 1" in call["messages"][1]["content"]
 
