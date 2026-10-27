@@ -35,6 +35,27 @@ class FakeEmbeddingClient:
         self.embeddings = FakeEmbeddings()
 
 
+class BatchEmbeddings:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def create(self, **kwargs: object) -> SimpleNamespace:
+        self.calls.append(kwargs)
+        texts = kwargs["input"]
+        assert isinstance(texts, list)
+        return SimpleNamespace(
+            data=[
+                SimpleNamespace(index=index, embedding=[float(index)])
+                for index, _text in enumerate(texts)
+            ]
+        )
+
+
+class BatchEmbeddingClient:
+    def __init__(self) -> None:
+        self.embeddings = BatchEmbeddings()
+
+
 class FakeResponses:
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
@@ -78,6 +99,19 @@ def test_openai_embedder_batches_text_and_restores_input_order() -> None:
             "input": ["first", "second"],
             "encoding_format": "float",
         }
+    ]
+
+
+def test_openai_embedder_sends_large_inputs_in_batches() -> None:
+    client = BatchEmbeddingClient()
+    embedder = OpenAIEmbedder(client=client, model="test-embedding-model", batch_size=2)
+
+    vectors = embedder.embed(["first", "second", "third"])
+
+    assert vectors == [[0.0], [1.0], [0.0]]
+    assert [call["input"] for call in client.embeddings.calls] == [
+        ["first", "second"],
+        ["third"],
     ]
 
 

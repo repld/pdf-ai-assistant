@@ -95,9 +95,17 @@ def main() -> None:
             st.error(str(error))
         except DocumentError as error:
             st.error(str(error))
-        except (OpenAIError, RuntimeError):
+        except OpenAIError as error:
             logger.exception("Failed to index uploaded document")
-            st.error("The AI provider failed while processing the document.")
+            status = getattr(error, "status_code", None)
+            detail = f" (HTTP {status})" if status else ""
+            st.error(
+                "The AI provider failed while processing the document"
+                f"{detail}. Check your OpenRouter key, credits, and embedding model."
+            )
+        except RuntimeError:
+            logger.exception("Failed to index uploaded document")
+            st.error("Document processing produced an invalid embedding response.")
         else:
             st.success(
                 f"Ready: {source} ({st.session_state['indexed_page_count']} pages indexed)."

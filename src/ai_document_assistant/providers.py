@@ -8,6 +8,7 @@ from typing import Any
 from .documents import DocumentChunk
 
 DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
+DEFAULT_EMBEDDING_BATCH_SIZE = 32
 GROUNDING_INSTRUCTIONS = (
     "Answer the question using only the supplied document excerpts. "
     "If the excerpts do not support an answer, say exactly: "
@@ -28,9 +29,18 @@ def _source_text(context: Sequence[DocumentChunk]) -> str:
 class OpenAIEmbedder:
     """Adapt the OpenAI embeddings endpoint to the application's embedder interface."""
 
-    def __init__(self, *, client: Any, model: str = DEFAULT_EMBEDDING_MODEL) -> None:
+    def __init__(
+        self,
+        *,
+        client: Any,
+        model: str = DEFAULT_EMBEDDING_MODEL,
+        batch_size: int = DEFAULT_EMBEDDING_BATCH_SIZE,
+    ) -> None:
+        if batch_size <= 0:
+            raise ValueError("batch_size must be positive")
         self._client = client
         self._model = model
+        self._batch_size = batch_size
 
     def embed(self, texts: Sequence[str]) -> list[list[float]]:
         """Return one vector per input text, in the same order as the inputs."""
@@ -40,15 +50,19 @@ class OpenAIEmbedder:
         if any(not text.strip() for text in texts):
             raise ValueError("embedding input must not contain empty text")
 
-        response = self._client.embeddings.create(
-            model=self._model,
-            input=list(texts),
-            encoding_format="float",
-        )
-        data = sorted(response.data, key=lambda item: item.index)
-        if len(data) != len(texts):
-            raise RuntimeError("embedding provider returned the wrong number of vectors")
-        return [list(item.embedding) for item in data]
+        vectors: list[list[float]] = []
+        for start in range(0, len(texts), self._batch_size):
+            batch = list(texts[start : start + self._batch_size])
+            response = self._client.embeddings.create(
+                model=self._model,
+                input=batch,
+                encoding_format="float",
+            )
+            data = sorted(response.data, key=lambda item: item.index)
+            if len(data) != len(batch):
+                raise RuntimeError("embedding provider returned the wrong number of vectors")
+            vectors.extend(list(item.embedding) for item in data)
+        return vectors
 
 
 class OpenAIAnswerer:

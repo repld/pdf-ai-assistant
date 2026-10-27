@@ -147,6 +147,8 @@ The same API can be started with Docker Compose after configuring `.env`:
 docker compose up --build
 ```
 
+For Streamlit Community Cloud deployment, see [docs/deployment.md](docs/deployment.md). The repository must first be published to GitHub, and the OpenRouter settings must be added through Streamlit’s Secrets panel rather than committed to the repository.
+
 ## Milestone 2: robust interaction
 
 The second milestone adds input validation, missing-configuration errors, empty-response checks, API error handling, and a reusable interactive question loop. The tests still use fake clients and do not contact the API.
