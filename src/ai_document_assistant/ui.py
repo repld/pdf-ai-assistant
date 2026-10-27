@@ -11,10 +11,10 @@ from typing import Any
 import streamlit as st
 from openai import OpenAIError
 
-from .application import build_rag_assistant
-from .assistant import ConfigurationError
-from .documents import DocumentError, chunk_pages, extract_pdf_pages
-from .rag import RAGAnswer, RAGAssistant
+from ai_document_assistant.application import build_rag_assistant
+from ai_document_assistant.assistant import ConfigurationError
+from ai_document_assistant.documents import DocumentError, chunk_pages, extract_pdf_pages
+from ai_document_assistant.rag import RAGAnswer, RAGAssistant
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 logger = logging.getLogger(__name__)
