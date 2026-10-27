@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,8 @@ from .documents import DocumentChunk, DocumentPage, chunk_pages, extract_pdf_pag
 from .persistence import SQLiteVectorStore
 from .providers import OpenAIAnswerer, OpenAIEmbedder
 from .rag import RAGAnswer, RAGAssistant
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -50,6 +53,7 @@ def index_pdfs(
 
     pages: list[DocumentPage] = []
     for path in paths:
+        logger.info("Extracting PDF pages from %s", path.name)
         pages.extend(extract_pdf_pages(path))
 
     chunks: list[DocumentChunk] = chunk_pages(
@@ -58,6 +62,7 @@ def index_pdfs(
         overlap=overlap,
     )
     assistant.index(chunks)
+    logger.info("Indexed %s pages into %s chunks", len(pages), len(chunks))
     return IndexingSummary(page_count=len(pages), chunk_count=len(chunks))
 
 

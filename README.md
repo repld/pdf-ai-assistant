@@ -109,3 +109,9 @@ Real requests use API credits. This project does not make a live request automat
 ## Learning plan
 
 See [docs/learning-plan.md](docs/learning-plan.md) for the high-level architecture, first-week plan, and book topics to study before the next feature.
+
+See [docs/architecture.md](docs/architecture.md) for the complete data flow, module responsibilities, trade-offs, and current limitations.
+
+## Continuous integration
+
+GitHub Actions runs the test suite and Ruff on pushes and pull requests. The repository intentionally excludes `.env`, local databases, virtual environments, and reference PDFs.

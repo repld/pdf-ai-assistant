@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -15,6 +16,7 @@ from .documents import DocumentError, chunk_pages, extract_pdf_pages
 from .rag import RAGAssistant
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+logger = logging.getLogger(__name__)
 
 
 class AskRequest(BaseModel):
@@ -80,6 +82,7 @@ def create_app(assistant: Any | None = None) -> FastAPI:
             pages = extract_pdf_pages(Path(temporary_path))
             chunks = chunk_pages(pages)
             get_assistant().index(chunks)
+            logger.info("Indexed uploaded document %s", file.filename or "document.pdf")
         except (DocumentError, RuntimeError, ValueError) as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
         finally:
