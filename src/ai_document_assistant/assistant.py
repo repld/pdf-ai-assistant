@@ -22,6 +22,7 @@ class Settings:
 
     api_key: str
     model: str
+    embedding_model: str
 
 
 def load_settings() -> Settings:
@@ -37,6 +38,7 @@ def load_settings() -> Settings:
     return Settings(
         api_key=api_key,
         model=os.getenv("OPENAI_MODEL", DEFAULT_MODEL),
+        embedding_model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
     )
 
 

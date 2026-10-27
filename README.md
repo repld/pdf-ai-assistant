@@ -49,9 +49,19 @@ python -m ai_document_assistant
 
 Type `quit` or `exit` to stop.
 
+To index one or more PDFs and ask grounded questions:
+
+```powershell
+python -m ai_document_assistant --pdf .\path\to\document.pdf "What is the main idea?"
+```
+
+Use `--pdf` more than once to index multiple documents. Indexing calls the embeddings API, and questions call the model API, so both activities can incur API usage.
+
 ## Milestone 2: robust interaction
 
 The second milestone adds input validation, missing-configuration errors, empty-response checks, API error handling, and a reusable interactive question loop. The tests still use fake clients and do not contact the API.
+
+The document milestone now adds PDF text extraction, overlapping chunks, in-memory vector similarity search, RAG context construction, unsupported-question handling, and source-page citations.
 
 Real requests use API credits. This project does not make a live request automatically during tests.
 
