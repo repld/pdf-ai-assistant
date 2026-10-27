@@ -6,3 +6,6 @@ __pycache__/
 *.egg-info/
 .env
 *.local
+
+# Local reference books; do not commit copyrighted PDFs.
+*.pdf
