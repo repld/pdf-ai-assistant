@@ -47,6 +47,8 @@ Start it from the project directory:
 streamlit run src\ai_document_assistant\ui.py
 ```
 
+On Windows, you can also double-click `start-assistant.bat` in the project folder. It checks that `.venv` and `.env` exist, then starts the same browser interface.
+
 Streamlit opens a browser tab at a local address. Upload a PDF, wait for indexing to finish, and ask questions in the chat box. Answers display the source filename and page numbers. The interface keeps the current document and chat history in the browser session; restarting the app clears that session.
 
 ## Run
