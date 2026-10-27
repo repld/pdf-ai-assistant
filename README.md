@@ -19,7 +19,7 @@ The test uses a fake client, so it does not contact the API or incur usage costs
 Requirements: Python 3.12+.
 
 ```powershell
-py -3.12 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 Copy-Item .env.example .env
@@ -40,6 +40,18 @@ After configuring an API key, make one real request:
 ```powershell
 python -m ai_document_assistant "Explain what an API is in one paragraph."
 ```
+
+Or omit the question to start interactive mode:
+
+```powershell
+python -m ai_document_assistant
+```
+
+Type `quit` or `exit` to stop.
+
+## Milestone 2: robust interaction
+
+The second milestone adds input validation, missing-configuration errors, empty-response checks, API error handling, and a reusable interactive question loop. The tests still use fake clients and do not contact the API.
 
 Real requests use API credits. This project does not make a live request automatically during tests.
 
