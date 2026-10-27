@@ -22,10 +22,5 @@ if not exist ".env" (
     exit /b 1
 )
 
-echo Starting AI Document Assistant...
-echo Close this window or press Ctrl+C to stop the application.
-echo.
-
-".venv\Scripts\python.exe" -m streamlit run "src\ai_document_assistant\ui.py"
-
-pause
+start "AI Document Assistant" powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0start-assistant.ps1"
+exit /b 0
