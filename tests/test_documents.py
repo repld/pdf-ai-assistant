@@ -68,6 +68,16 @@ def test_extract_pdf_pages_can_select_a_page_range() -> None:
     ]
 
 
+def test_extract_pdf_pages_can_preserve_an_uploaded_filename() -> None:
+    pages = extract_pdf_pages(
+        Path("temporary-upload.pdf"),
+        source_name="original-guide.pdf",
+        reader_factory=FakeReader,
+    )
+
+    assert pages[0].source == "original-guide.pdf"
+
+
 def test_chunk_pages_keeps_page_metadata_and_overlapping_windows() -> None:
     pages = [DocumentPage(source="guide.pdf", page_number=4, text="ABCDEFGHIJKL")]
 

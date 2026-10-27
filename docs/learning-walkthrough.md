@@ -175,7 +175,21 @@ FastAPI exposes the application through HTTP:
 
 The web app accepts an assistant during creation. Tests inject a fake assistant. Production lazily creates the configured assistant on the first document or question request.
 
-## 8. What to understand for interviews
+## 8. Browser chat interface
+
+Read `src/ai_document_assistant/ui.py`.
+
+Run it with:
+
+```powershell
+streamlit run src\ai_document_assistant\ui.py
+```
+
+Streamlit reruns the script whenever a widget changes, so the UI stores the assistant, uploaded-file hash, indexed filename, page count, and messages in `st.session_state`. The uploaded PDF is temporarily written to disk for `pypdf`, then deleted. The original filename is preserved only as citation metadata.
+
+When the user uploads a different file, the UI creates a fresh in-memory assistant rather than mixing chunks from different documents. The chat answer still comes from `RAGAssistant`, so the citation validation and unsupported-question behavior are shared with the CLI and API.
+
+## 9. What to understand for interviews
 
 You should be able to explain:
 

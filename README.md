@@ -33,6 +33,22 @@ Copy-Item .env.example .env
 
 For the recommended OpenRouter setup, follow [docs/openrouter-setup.md](docs/openrouter-setup.md). Keep `.env` private; it is ignored by Git.
 
+## Browser chat interface
+
+Install the optional Streamlit interface:
+
+```powershell
+python -m pip install -e ".[dev,web,ui]"
+```
+
+Start it from the project directory:
+
+```powershell
+streamlit run src\ai_document_assistant\ui.py
+```
+
+Streamlit opens a browser tab at a local address. Upload a PDF, wait for indexing to finish, and ask questions in the chat box. Answers display the source filename and page numbers. The interface keeps the current document and chat history in the browser session; restarting the app clears that session.
+
 ## Run
 
 Run the network-free test:

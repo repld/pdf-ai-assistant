@@ -39,6 +39,7 @@ def extract_pdf_pages(
     max_pages: int | None = None,
     page_start: int = 1,
     page_end: int | None = None,
+    source_name: str | None = None,
     reader_factory: Callable[[str], Any] = PdfReader,
 ) -> list[DocumentPage]:
     """Extract non-empty pages from a PDF while preserving page numbers."""
@@ -51,6 +52,7 @@ def extract_pdf_pages(
         raise ValueError("page_end must not be smaller than page_start")
 
     reader = reader_factory(str(path))
+    display_source = Path(source_name).name if source_name else path.name
     pages: list[DocumentPage] = []
 
     for page_number, page in enumerate(reader.pages, start=1):
@@ -64,7 +66,7 @@ def extract_pdf_pages(
         if text:
             pages.append(
                 DocumentPage(
-                    source=path.name,
+                    source=display_source,
                     page_number=page_number,
                     text=text,
                 )
