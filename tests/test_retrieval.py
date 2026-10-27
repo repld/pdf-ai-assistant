@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from ai_document_assistant.documents import DocumentChunk
-from ai_document_assistant.providers import OpenAIAnswerer, OpenAIEmbedder
+from ai_document_assistant.providers import ChatCompletionAnswerer, OpenAIAnswerer, OpenAIEmbedder
 from ai_document_assistant.retrieval import InMemoryVectorStore
 
 
@@ -49,6 +49,22 @@ class FakeAnswerClient:
         self.responses = FakeResponses()
 
 
+class FakeChatCompletions:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def create(self, **kwargs: object) -> SimpleNamespace:
+        self.calls.append(kwargs)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content="Chat answer [1]"))]
+        )
+
+
+class FakeChatClient:
+    def __init__(self) -> None:
+        self.chat = SimpleNamespace(completions=FakeChatCompletions())
+
+
 def test_openai_embedder_batches_text_and_restores_input_order() -> None:
     client = FakeEmbeddingClient()
     embedder = OpenAIEmbedder(client=client, model="test-embedding-model")
@@ -75,6 +91,19 @@ def test_openai_answerer_sends_numbered_context_and_returns_text() -> None:
     call = client.responses.calls[0]
     assert call["model"] == "test-model"
     assert "[1] guide.pdf, page 1" in str(call["input"])
+
+
+def test_chat_completion_answerer_returns_openrouter_style_answer() -> None:
+    client = FakeChatClient()
+    answerer = ChatCompletionAnswerer(client=client, model="openrouter/free")
+
+    answer = answerer.answer("What is Python?", [chunk("python", "Python is a language.")])
+
+    assert answer == "Chat answer [1]"
+    call = client.chat.completions.calls[0]
+    assert call["model"] == "openrouter/free"
+    assert call["messages"][0]["role"] == "system"
+    assert "[1] guide.pdf, page 1" in call["messages"][1]["content"]
 
 
 def test_in_memory_store_returns_most_similar_chunks_first() -> None:

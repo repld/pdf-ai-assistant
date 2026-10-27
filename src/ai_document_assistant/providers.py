@@ -8,6 +8,19 @@ from typing import Any
 from .documents import DocumentChunk
 
 DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
+GROUNDING_INSTRUCTIONS = (
+    "Answer the question using only the supplied document excerpts. "
+    "If the excerpts do not support an answer, say that the answer was not found "
+    "in the uploaded documents. Cite supporting excerpts with their bracketed "
+    "source number, such as [1]."
+)
+
+
+def _source_text(context: Sequence[DocumentChunk]) -> str:
+    return "\n\n".join(
+        f"[{index}] {chunk.source}, page {chunk.page_number}\n{chunk.text}"
+        for index, chunk in enumerate(context, start=1)
+    )
 
 
 class OpenAIEmbedder:
@@ -47,21 +60,39 @@ class OpenAIAnswerer:
         if not context:
             raise ValueError("answer context must not be empty")
 
-        source_text = "\n\n".join(
-            f"[{index}] {chunk.source}, page {chunk.page_number}\n{chunk.text}"
-            for index, chunk in enumerate(context, start=1)
-        )
         response = self._client.responses.create(
             model=self._model,
-            instructions=(
-                "Answer the question using only the supplied document excerpts. "
-                "If the excerpts do not support an answer, say that the answer was "
-                "not found in the uploaded documents. Cite supporting excerpts with "
-                "their bracketed source number, such as [1]."
-            ),
-            input=f"Question: {question}\n\nDocument excerpts:\n{source_text}",
+            instructions=GROUNDING_INSTRUCTIONS,
+            input=f"Question: {question}\n\nDocument excerpts:\n{_source_text(context)}",
         )
         answer = response.output_text.strip()
+        if not answer:
+            raise RuntimeError("the model returned an empty grounded answer")
+        return answer
+
+
+class ChatCompletionAnswerer:
+    """Adapt OpenAI-compatible chat-completions providers such as OpenRouter."""
+
+    def __init__(self, *, client: Any, model: str) -> None:
+        self._client = client
+        self._model = model
+
+    def answer(self, question: str, context: Sequence[DocumentChunk]) -> str:
+        if not context:
+            raise ValueError("answer context must not be empty")
+
+        response = self._client.chat.completions.create(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": GROUNDING_INSTRUCTIONS},
+                {
+                    "role": "user",
+                    "content": f"Question: {question}\n\nDocument excerpts:\n{_source_text(context)}",
+                },
+            ],
+        )
+        answer = (response.choices[0].message.content or "").strip()
         if not answer:
             raise RuntimeError("the model returned an empty grounded answer")
         return answer

@@ -25,7 +25,7 @@ python -m pip install -e ".[dev]"
 Copy-Item .env.example .env
 ```
 
-Edit `.env` and set `OPENAI_API_KEY` to your API key. Keep `.env` private; it is ignored by Git. You can change the model with `OPENAI_MODEL`.
+For the recommended OpenRouter setup, follow [docs/openrouter-setup.md](docs/openrouter-setup.md). Keep `.env` private; it is ignored by Git.
 
 ## Run
 

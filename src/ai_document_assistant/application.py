@@ -12,7 +12,7 @@ from openai import OpenAI
 from .assistant import load_settings
 from .documents import DocumentChunk, DocumentPage, chunk_pages, extract_pdf_pages
 from .persistence import SQLiteVectorStore
-from .providers import OpenAIAnswerer, OpenAIEmbedder
+from .providers import ChatCompletionAnswerer, OpenAIAnswerer, OpenAIEmbedder
 from .rag import RAGAnswer, RAGAssistant
 
 logger = logging.getLogger(__name__)
@@ -30,14 +30,22 @@ def build_rag_assistant(*, database_path: Path | None = None) -> RAGAssistant:
     """Create the production adapters and an in-memory RAG assistant."""
 
     settings = load_settings()
-    client = OpenAI(api_key=settings.api_key)
+    client_kwargs = {"api_key": settings.api_key}
+    if settings.base_url:
+        client_kwargs["base_url"] = settings.base_url
+    client = OpenAI(**client_kwargs)
     store = None
     if database_path is not None:
         database_path.parent.mkdir(parents=True, exist_ok=True)
         store = SQLiteVectorStore(database_path)
+    answerer = (
+        ChatCompletionAnswerer(client=client, model=settings.model)
+        if settings.provider == "openrouter"
+        else OpenAIAnswerer(client=client, model=settings.model)
+    )
     return RAGAssistant(
         embedder=OpenAIEmbedder(client=client, model=settings.embedding_model),
-        answerer=OpenAIAnswerer(client=client, model=settings.model),
+        answerer=answerer,
         store=store,
     )
 

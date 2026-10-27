@@ -41,6 +41,8 @@ command-line text
 
 The `client` parameter is injectable. Production code uses the real client; tests use `FakeClient`. This is dependency injection: the function receives a dependency instead of constructing it unconditionally. That is why the test can check our code without contacting the network.
 
+This project supports OpenRouter as an OpenAI-compatible provider. With `AI_PROVIDER=openrouter`, the application uses OpenRouter's chat-completions endpoint for answers and its embeddings endpoint for retrieval. The rest of the RAG code does not need to know which provider is behind the adapter.
+
 ## 2. Interactive mode
 
 Read `src/ai_document_assistant/cli.py`.

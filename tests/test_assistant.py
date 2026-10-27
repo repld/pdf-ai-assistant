@@ -4,6 +4,7 @@ import pytest
 
 import ai_document_assistant.assistant as assistant_module
 from ai_document_assistant import ConfigurationError, ask_question
+from ai_document_assistant.assistant import load_settings
 from ai_document_assistant.cli import run_interactive
 
 
@@ -51,8 +52,26 @@ def test_missing_api_key_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(assistant_module, "load_dotenv", lambda: None)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    with pytest.raises(ConfigurationError, match="OPENAI_API_KEY"):
+    with pytest.raises(ConfigurationError, match="API key"):
         assistant_module.load_settings()
+
+
+def test_openrouter_settings_use_openrouter_environment_variables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(assistant_module, "load_dotenv", lambda: None)
+    monkeypatch.setenv("AI_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setenv("OPENROUTER_MODEL", "openrouter/free")
+    monkeypatch.setenv("OPENROUTER_EMBEDDING_MODEL", "test-embedding")
+
+    settings = load_settings()
+
+    assert settings.provider == "openrouter"
+    assert settings.api_key == "test-key"
+    assert settings.base_url == "https://openrouter.ai/api/v1"
+    assert settings.model == "openrouter/free"
+    assert settings.embedding_model == "test-embedding"
 
 
 def test_empty_model_answer_is_rejected() -> None:
