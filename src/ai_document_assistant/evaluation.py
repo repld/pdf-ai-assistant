@@ -89,7 +89,9 @@ def evaluate(
     results = []
     for case in cases:
         answer = assistant.answer(case.question)
-        actual_chunk_ids = {citation.chunk_id for citation in answer.citations}
+        actual_chunk_ids = set(answer.retrieved_chunk_ids)
+        if not actual_chunk_ids:
+            actual_chunk_ids = {citation.chunk_id for citation in answer.citations}
         results.append(
             EvaluationResult(
                 case_id=case.case_id,

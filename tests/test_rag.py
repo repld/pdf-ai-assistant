@@ -51,6 +51,7 @@ def test_rag_assistant_retrieves_context_and_returns_citations() -> None:
 
     assert result.answer == "Python is a programming language. [1]"
     assert result.citations[0].chunk_id == "python"
+    assert result.retrieved_chunk_ids == ("python",)
     assert answerer.questions == ["What is Python?"]
     assert [item.chunk_id for item in answerer.contexts[0]] == ["python"]
 
@@ -68,6 +69,7 @@ def test_rag_assistant_declines_when_no_relevant_context_exists() -> None:
 
     assert result.answer == "I could not find an answer in the uploaded documents."
     assert result.citations == ()
+    assert result.retrieved_chunk_ids == ()
     assert answerer.questions == []
 
 
@@ -95,6 +97,7 @@ def test_rag_assistant_returns_only_model_cited_sources() -> None:
     result = assistant.answer("Who created Python?")
 
     assert [citation.chunk_id for citation in result.citations] == ["second"]
+    assert result.retrieved_chunk_ids == ("first", "second")
 
 
 def test_rag_assistant_rejects_an_answer_without_valid_citations() -> None:
@@ -107,4 +110,4 @@ def test_rag_assistant_rejects_an_answer_without_valid_citations() -> None:
 
     result = assistant.answer("What is Python?")
 
-    assert result == type(result)(answer=UNSUPPORTED_ANSWER, citations=())
+    assert result == type(result)(answer=UNSUPPORTED_ANSWER, citations=(), retrieved_chunk_ids=("python",))

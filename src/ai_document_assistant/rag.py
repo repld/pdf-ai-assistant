@@ -37,6 +37,7 @@ class RAGAnswer:
 
     answer: str
     citations: tuple[Citation, ...]
+    retrieved_chunk_ids: tuple[str, ...] = ()
 
 
 class RAGAssistant:
@@ -61,7 +62,7 @@ class RAGAssistant:
         vectors = self._embedder.embed([chunk.text for chunk in chunks])
         self._store.add(chunks, vectors)
 
-    def answer(self, question: str, *, top_k: int = 3) -> RAGAnswer:
+    def answer(self, question: str, *, top_k: int = 5) -> RAGAnswer:
         question = question.strip()
         if not question:
             raise ValueError("question must not be empty")
@@ -76,12 +77,21 @@ class RAGAssistant:
             return RAGAnswer(answer=UNSUPPORTED_ANSWER, citations=())
 
         context = [match.chunk for match in matches]
+        retrieved_chunk_ids = tuple(chunk.chunk_id for chunk in context)
         answer = self._answerer.answer(question, context)
         if answer.strip() == UNSUPPORTED_ANSWER:
-            return RAGAnswer(answer=UNSUPPORTED_ANSWER, citations=())
+            return RAGAnswer(
+                answer=UNSUPPORTED_ANSWER,
+                citations=(),
+                retrieved_chunk_ids=retrieved_chunk_ids,
+            )
         citation_indexes = _citation_indexes(answer, len(context))
         if not citation_indexes:
-            return RAGAnswer(answer=UNSUPPORTED_ANSWER, citations=())
+            return RAGAnswer(
+                answer=UNSUPPORTED_ANSWER,
+                citations=(),
+                retrieved_chunk_ids=retrieved_chunk_ids,
+            )
 
         cited_context = [context[index - 1] for index in citation_indexes]
         citations = tuple(
@@ -92,7 +102,11 @@ class RAGAssistant:
             )
             for chunk in cited_context
         )
-        return RAGAnswer(answer=answer, citations=citations)
+        return RAGAnswer(
+            answer=answer,
+            citations=citations,
+            retrieved_chunk_ids=retrieved_chunk_ids,
+        )
 
 
 def _citation_indexes(answer: str, context_count: int) -> list[int]:

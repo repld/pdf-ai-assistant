@@ -20,7 +20,10 @@
     "case_id": "learning-types",
     "question": "What is the difference between supervised and unsupervised learning?",
     "expected_chunk_ids": [
+      "Hands-On Machine Learning with Scikit-Learn and PyTorch Concepts, Tools, and Techniques to Build Intelligent Systems (Aurélien Géron) (Z-Library).pdf:p40:c1",
       "Hands-On Machine Learning with Scikit-Learn and PyTorch Concepts, Tools, and Techniques to Build Intelligent Systems (Aurélien Géron) (Z-Library).pdf:p40:c2",
+      "Hands-On Machine Learning with Scikit-Learn and PyTorch Concepts, Tools, and Techniques to Build Intelligent Systems (Aurélien Géron) (Z-Library).pdf:p41:c1",
+      "Hands-On Machine Learning with Scikit-Learn and PyTorch Concepts, Tools, and Techniques to Build Intelligent Systems (Aurélien Géron) (Z-Library).pdf:p41:c2",
       "Hands-On Machine Learning with Scikit-Learn and PyTorch Concepts, Tools, and Techniques to Build Intelligent Systems (Aurélien Géron) (Z-Library).pdf:p42:c1",
       "Hands-On Machine Learning with Scikit-Learn and PyTorch Concepts, Tools, and Techniques to Build Intelligent Systems (Aurélien Géron) (Z-Library).pdf:p42:c2"
     ]

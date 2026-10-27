@@ -139,7 +139,7 @@ I could not find an answer in the uploaded documents.
 
 That is an important reliability behavior. The assistant should not pretend that every question is answerable from the uploaded documents.
 
-`OpenAIAnswerer` and `ChatCompletionAnswerer` tell the model to use only the retrieved excerpts and cite numbered sources. `RAGAssistant` validates those source numbers: an answer with no valid citation is replaced with the safe unsupported-answer response, and the API returns only the pages the model cited.
+`OpenAIAnswerer` and `ChatCompletionAnswerer` tell the model to use only the retrieved excerpts and cite numbered sources. `RAGAssistant` validates those source numbers: an answer with no valid citation is replaced with the safe unsupported-answer response, and the API returns only the pages the model cited. Internally, the result also keeps the retrieved chunk IDs so evaluation can separate search quality from citation behavior.
 
 ## 6. Persistence and evaluation
 

@@ -18,6 +18,7 @@ def test_evaluation_reports_retrieval_hit_rate_and_answer_rate() -> None:
             "What is Python?": RAGAnswer(
                 answer="A programming language.",
                 citations=(Citation("python", "guide.pdf", 1),),
+                retrieved_chunk_ids=("python", "other"),
             ),
             "What is missing?": RAGAnswer(
                 answer="I could not find an answer in the uploaded documents.",
