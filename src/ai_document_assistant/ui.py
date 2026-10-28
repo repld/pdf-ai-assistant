@@ -23,18 +23,13 @@ from ai_document_assistant.rag import RAGAnswer, RAGAssistant
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 CHAT_PANEL_HEIGHT = 500
-PDF_VIEWER_HEIGHT = 720
+PDF_VIEWER_HEIGHT = 620
 PDF_READING_HEIGHT = 900
 LAYOUT_RATIOS = {
     "Reader focus (65/35)": [1.7, 0.9],
     "Balanced (50/50)": [1.0, 1.0],
     "Chat focus (35/65)": [0.9, 1.7],
 }
-SUGGESTED_QUESTIONS = (
-    "What is the main idea of this document?",
-    "List every major concept covered in the document.",
-    "What are the most important takeaways?",
-)
 logger = logging.getLogger(__name__)
 
 
@@ -119,10 +114,11 @@ def _render_diagnostics(slot: Any, diagnostics: dict[str, object] | None) -> Non
         st.caption(f"Model: {diagnostics['model'] or 'configured provider'}")
 
 
-def _display_sidebar() -> Any:
+def _display_sidebar() -> tuple[Any, Any]:
     latest_diagnostics: dict[str, object] | None = None
     with st.sidebar:
         st.header("Document")
+        uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
         source = st.session_state.get("indexed_source")
         if source is None:
             st.caption("Upload a PDF to begin.")
@@ -173,7 +169,7 @@ def _display_sidebar() -> Any:
 
     diagnostics_slot = st.sidebar.empty()
     _render_diagnostics(diagnostics_slot, latest_diagnostics)
-    return diagnostics_slot
+    return diagnostics_slot, uploaded_file
 
 
 @st.cache_data(show_spinner=False)
@@ -256,11 +252,12 @@ def _display_selected_excerpt() -> None:
     page_number = int(citation["page_number"])
     excerpt = escape(str(citation["text"]).strip())
     st.caption(f"Supporting excerpt from page {page_number}")
-    st.markdown(
-        f"<div style='padding:0.75rem;border-left:4px solid #4f8bf9;"
-        f"background-color:rgba(79,139,249,0.10);'><mark>{excerpt}</mark></div>",
-        unsafe_allow_html=True,
-    )
+    with st.container(height=180, border=True):
+        st.markdown(
+            f"<div style='padding:0.75rem;border-left:4px solid #4f8bf9;"
+            f"background-color:rgba(79,139,249,0.10);'><mark>{excerpt}</mark></div>",
+            unsafe_allow_html=True,
+        )
     if st.button("Clear highlighted excerpt", key="clear-selected-citation"):
         st.session_state.pop("selected_citation", None)
         st.rerun()
@@ -268,35 +265,36 @@ def _display_selected_excerpt() -> None:
 
 
 def _display_document_tools(pdf_bytes: bytes, source: str) -> None:
-    search_query = st.text_input(
-        "Search within book",
-        key="document_search",
-        placeholder="Find a word or phrase...",
-    )
-    if search_query.strip():
-        results = _search_pdf(pdf_bytes, search_query)
-        if not results:
-            st.caption("No matching pages found.")
-        else:
-            st.caption(f"{len(results)} matching page(s)")
-            for index, (page_number, snippet) in enumerate(results[:8]):
-                if st.button(
-                    f"Page {page_number}: {snippet[:100]}",
-                    key=f"search-result-{index}",
-                    use_container_width=True,
-                ):
-                    _select_citation(
-                        {
-                            "source": source,
-                            "page_number": page_number,
-                            "text": snippet,
-                            "score": None,
-                        }
-                    )
+    with st.expander("Book tools", expanded=False):
+        search_query = st.text_input(
+            "Search within book",
+            key="document_search",
+            placeholder="Find a word or phrase...",
+        )
+        if search_query.strip():
+            results = _search_pdf(pdf_bytes, search_query)
+            if not results:
+                st.caption("No matching pages found.")
+            else:
+                st.caption(f"{len(results)} matching page(s)")
+                for index, (page_number, snippet) in enumerate(results[:8]):
+                    if st.button(
+                        f"Page {page_number}: {snippet[:100]}",
+                        key=f"search-result-{index}",
+                        use_container_width=True,
+                    ):
+                        _select_citation(
+                            {
+                                "source": source,
+                                "page_number": page_number,
+                                "text": snippet,
+                                "score": None,
+                            }
+                        )
 
-    outline = _pdf_outline(pdf_bytes)
-    if outline:
-        with st.expander("Table of contents", expanded=False):
+        outline = _pdf_outline(pdf_bytes)
+        if outline:
+            st.caption("Table of contents")
             for index, (title, page_number, level) in enumerate(outline):
                 label = f"{'  ' * level}{title} (page {page_number})"
                 if st.button(
@@ -405,21 +403,6 @@ def _display_feedback(message: dict[str, object], key_prefix: str) -> None:
         message["feedback_timestamp"] = datetime.now(UTC).isoformat()
 
 
-def _display_suggested_questions() -> str | None:
-    if st.session_state["messages"]:
-        return None
-
-    st.caption("Try a suggested question")
-    for index, suggested_question in enumerate(SUGGESTED_QUESTIONS):
-        if st.button(
-            suggested_question,
-            key=f"suggested-question-{index}",
-            use_container_width=True,
-        ):
-            return suggested_question
-    return None
-
-
 def _display_chat_history() -> None:
     for index, message in enumerate(st.session_state["messages"]):
         with st.chat_message(message["role"]):
@@ -449,8 +432,12 @@ def _display_chat_workspace(diagnostics_slot: Any) -> None:
     with chat_panel:
         _display_chat_history()
 
-    suggested_question = _display_suggested_questions()
-    question = suggested_question or st.chat_input("Ask a question about the book")
+    st.markdown(
+        "<div class='ask-book-prompt'><strong>Ask the book</strong>"
+        "<span>Ask about an idea, argument, character, or page.</span></div>",
+        unsafe_allow_html=True,
+    )
+    question = st.chat_input("Ask a question about the book...")
     if question is None:
         return
 
@@ -500,13 +487,43 @@ def main() -> None:
     """Render the Streamlit document chat application."""
 
     st.set_page_config(page_title="AI Document Assistant", page_icon="PDF", layout="wide")
+    st.markdown(
+        """
+        <style>
+        .ask-book-prompt {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            margin: 0.75rem 0 0.35rem;
+            padding: 0.65rem 0.85rem;
+            border: 1px solid rgba(79, 139, 249, 0.45);
+            border-radius: 0.75rem;
+            background: linear-gradient(135deg, rgba(79, 139, 249, 0.16), rgba(79, 139, 249, 0.04));
+        }
+        .ask-book-prompt strong {
+            color: #2563eb;
+            font-size: 1.05rem;
+        }
+        .ask-book-prompt span {
+            color: rgba(128, 128, 128, 0.95);
+            font-size: 0.85rem;
+        }
+        [data-testid="stChatInput"] {
+            border: 2px solid rgba(79, 139, 249, 0.75);
+            border-radius: 0.85rem;
+            box-shadow: 0 0 0 3px rgba(79, 139, 249, 0.10);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
     st.title("AI Document Assistant")
     st.write("Upload a PDF, then ask questions that are answered using its contents.")
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
 
-    uploaded_file = st.file_uploader("Choose a PDF", type=["pdf"])
+    diagnostics_slot, uploaded_file = _display_sidebar()
     if uploaded_file is not None:
         with st.status("Indexing document...", expanded=True) as indexing_status:
             try:
@@ -536,10 +553,8 @@ def main() -> None:
                     f"Ready: {source} ({st.session_state['indexed_page_count']} pages indexed)."
                 )
 
-    diagnostics_slot = _display_sidebar()
-
     if st.session_state.get("indexed_source") is None:
-        st.info("Upload a PDF to start asking questions.")
+        st.info("Upload a PDF using the sidebar to start reading and asking questions.")
         return
 
     if st.session_state.get("reading_mode", False):

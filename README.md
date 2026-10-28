@@ -10,7 +10,7 @@ Live demo: [pdfaiassist.streamlit.app](https://pdfaiassist.streamlit.app/)
 - Reader-focused PDF workspace with a secondary question panel
 - Citation-driven page navigation and highlighted supporting excerpts
 - Search, table-of-contents navigation, layout controls, and reading mode
-- Indexing progress, document metadata, suggested questions, and answer feedback
+- Indexing progress, document metadata, and answer feedback
 - PDF text extraction with page metadata preserved for citations
 - Overlapping text chunking
 - Embedding-based similarity search
