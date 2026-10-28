@@ -615,7 +615,7 @@ def main() -> None:
             box-shadow: 0 0 0 3px rgba(79, 139, 249, 0.10);
         }
         .block-container {
-            padding-top: 1.25rem;
+            padding-top: 2rem;
         }
         .dashboard-header {
             display: flex;
