@@ -1,6 +1,6 @@
 # OpenRouter setup
 
-OpenRouter is the simplest provider for this project because one account can provide both chat-model and embedding requests through an OpenAI-compatible endpoint.
+OpenRouter provides both chat-model and embedding requests through an OpenAI-compatible endpoint.
 
 ## Configure the project
 
@@ -23,7 +23,7 @@ Create the API key in your OpenRouter dashboard. Never commit `.env` or paste th
 
 ## Models
 
-`deepseek/deepseek-v3.2` is a specific, low-cost model suitable for this learning project. OpenRouter may route it through multiple providers, so check the model page for current pricing and availability before a final deployment.
+`deepseek/deepseek-v3.2` is the default low-cost model configured for this application. OpenRouter may route it through multiple providers, so check the model page for current pricing and availability before deployment.
 
 Embeddings are separate from answer generation. The example uses `openai/text-embedding-3-small`, which OpenRouter documents as an embeddings model. Embedding requests are billed according to the selected model, so indexing a large book may use credits.
 

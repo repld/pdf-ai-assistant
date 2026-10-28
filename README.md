@@ -1,135 +1,94 @@
 # AI Document Assistant
 
-An educational project that will grow into a document question-answering application. Users will eventually upload PDFs, ask questions, and receive answers grounded in the documents with source citations.
+An AI-powered document question-answering application. Upload a PDF, ask questions about its contents, and receive grounded answers with source-page citations.
 
-This repository is separate from the existing breast-cancer data project. It has its own Python package, tests, environment file, and Git history.
+Live demo: [pdfaiassist.streamlit.app](https://pdfaiassist.streamlit.app/)
 
-## Current status
+## Features
 
-The project now supports direct AI questions, PDF extraction, overlapping chunks, embeddings, cosine-similarity retrieval, SQLite persistence, grounded RAG answers, source-page citations, evaluation, a FastAPI interface, Docker configuration, and CI checks.
+- Streamlit browser interface for PDF upload and chat
+- PDF text extraction with page metadata preserved for citations
+- Overlapping text chunking
+- Embedding-based similarity search
+- Retrieval-augmented generation (RAG)
+- Answers grounded in retrieved document excerpts
+- Numbered source citations with source filename and page number
+- Honest fallback when the answer cannot be supported by the document
+- FastAPI endpoints for document upload, questions, and health checks
+- Optional SQLite persistence for CLI and API usage
+- Automated tests, linting, and GitHub Actions CI
 
-The current reliability safeguards require model answers to include valid numbered citations. Answers without valid citations are replaced with the unsupported-document response.
-
-## Milestone 1: one AI question
-
-The first milestone proves the smallest useful application loop:
+## How it works
 
 ```text
-terminal question → ask_question() → OpenAI Responses API → terminal answer
+PDF upload
+    -> text extraction
+    -> overlapping chunks with page metadata
+    -> embeddings and vector index
+
+Question
+    -> question embedding
+    -> similarity search
+    -> grounded prompt with retrieved excerpts
+    -> answer with source citations
 ```
 
-The test uses a fake client, so it does not contact the API or incur usage costs.
+See [docs/architecture.md](docs/architecture.md) for module responsibilities, design decisions, and limitations.
 
-## Setup
+## Quick start
 
-Requirements: Python 3.12+. The project installs `pypdf` with its font-parsing extra so PDFs with embedded fonts have better text extraction.
+Requirements: Python 3.12 or newer.
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,ui]"
 Copy-Item .env.example .env
 ```
 
-For the recommended OpenRouter setup, follow [docs/openrouter-setup.md](docs/openrouter-setup.md). Keep `.env` private; it is ignored by Git.
+Add your provider settings to `.env`. The recommended configuration is documented in [docs/openrouter-setup.md](docs/openrouter-setup.md). Never commit `.env` or share its API key.
 
-## Browser chat interface
-
-Install the optional Streamlit interface:
-
-```powershell
-python -m pip install -e ".[dev,web,ui]"
-```
-
-Start it from the project directory:
+## Run the browser application
 
 ```powershell
 streamlit run src\ai_document_assistant\ui.py
 ```
 
-On Windows, double-click `start-assistant.vbs` for a completely invisible launcher. It checks that `.venv` and `.env` exist, starts Streamlit through the companion `start-assistant.ps1` script in a hidden background window, and opens the browser interface without leaving a command window open. The launcher supplies a blank response to Streamlit’s first-run email prompt.
+On Windows, double-click `start-assistant.vbs` to start the application without leaving a command window open. Upload a PDF, wait for indexing to finish, and ask questions in the chat interface.
 
-Streamlit opens a browser tab at a local address. Upload a PDF, wait for indexing to finish, and ask questions in the chat box. Answers display the source filename and page numbers. The interface keeps the current document and chat history in the browser session; restarting the app clears that session.
+The browser interface keeps the current document and messages in memory for that browser session. Restarting the app clears the session.
 
-## Run
+## Run the command-line application
 
-Run the network-free test:
-
-```powershell
-python -m pytest
-```
-
-After configuring an API key, make one real request:
+Ask a direct question:
 
 ```powershell
 python -m ai_document_assistant "Explain what an API is in one paragraph."
 ```
 
-Or omit the question to start interactive mode:
-
-```powershell
-python -m ai_document_assistant
-```
-
-Type `quit` or `exit` to stop.
-
-To index one or more PDFs and ask grounded questions:
-
-```powershell
-python -m ai_document_assistant --pdf .\path\to\document.pdf "What is the main idea?"
-```
-
-Use `--pdf` more than once to index multiple documents. Indexing calls the embeddings API, and questions call the model API, so both activities can incur API usage.
-
-Persist the index in SQLite so it can be reused:
-
-```powershell
-python -m ai_document_assistant --database data\assistant.db --pdf .\path\to\document.pdf
-python -m ai_document_assistant --database data\assistant.db "What is the main idea?"
-```
-
-For a small first experiment, limit indexing to the first few pages:
-
-```powershell
-python -m ai_document_assistant --database data\assistant.db --max-pages 3 --pdf "book.pdf" "What is the main idea?"
-```
-
-To index a specific page range, such as pages 30–32:
-
-```powershell
-python -m ai_document_assistant --database data\assistant.db --page-start 30 --page-end 32 --pdf "book.pdf" "What do these pages discuss?"
-```
-
-The example evaluation file is [data/evaluation.example.json](data/evaluation.example.json). Replace its placeholder chunk ID with a retrieved chunk ID, then run:
-
-```powershell
-python -m ai_document_assistant --database data\assistant.db --evaluate data\evaluation.json
-```
-
-Evaluation requests use embeddings and model calls, so they can incur API usage.
-
-The included Chapter 1 evaluation set covers pages 33–55 of the local Géron reference book:
+Index a PDF and ask a grounded question:
 
 ```powershell
 python -m ai_document_assistant `
-  --database ":memory:" `
-  --page-start 33 `
-  --page-end 55 `
-  --pdf "book.pdf" `
-  --evaluate data\chapter1-evaluation.json
+  --database data\assistant.db `
+  --max-pages 3 `
+  --pdf "path\to\document.pdf" `
+  "What is the main idea?"
 ```
 
-The report includes retrieval hit rate, answer rate, citation rate, and one line per case. Use a small page range while learning because indexing and evaluation use API requests.
+Use `--page-start` and `--page-end` to index a specific page range. Use `--pdf` more than once to index multiple documents.
 
-## HTTP interface
+Indexing uses the embedding model and asking questions uses the chat model, so both operations can incur provider usage.
 
-Install the web dependencies:
+## Run the API
+
+Install the API dependencies:
 
 ```powershell
 python -m pip install -e ".[dev,web]"
 ```
 
-Start the local API:
+Start FastAPI:
 
 ```powershell
 uvicorn ai_document_assistant.web:app --reload
@@ -137,34 +96,61 @@ uvicorn ai_document_assistant.web:app --reload
 
 Endpoints:
 
-- `GET /health` — health check.
-- `POST /documents` — upload a PDF as multipart form field `file`.
-- `POST /ask` — JSON body such as `{"question": "What is the main idea?"}`.
+- `GET /health` - process health check
+- `POST /documents` - upload a PDF as the multipart field `file`
+- `POST /ask` - ask a question, for example `{"question": "What is the main idea?"}`
 
-The same API can be started with Docker Compose after configuring `.env`:
+Docker support is available through `Dockerfile` and `docker-compose.yml`.
+
+## Evaluation
+
+Create a JSON evaluation file using [data/evaluation.example.json](data/evaluation.example.json), then run:
 
 ```powershell
-docker compose up --build
+python -m ai_document_assistant `
+  --database data\assistant.db `
+  --evaluate data\evaluation.json
 ```
 
-For Streamlit Community Cloud deployment, see [docs/deployment.md](docs/deployment.md). The repository must first be published to GitHub, and the OpenRouter settings must be added through Streamlit’s Secrets panel rather than committed to the repository.
+The report measures retrieval hits, answer presence, and citation presence. These metrics are useful signals but do not replace human review of factual accuracy.
 
-## Milestone 2: robust interaction
+## Testing and code quality
 
-The second milestone adds input validation, missing-configuration errors, empty-response checks, API error handling, and a reusable interactive question loop. The tests still use fake clients and do not contact the API.
+The test suite uses fake provider clients for network-free, predictable tests:
 
-The document milestone now adds PDF text extraction, overlapping chunks, in-memory vector similarity search, RAG context construction, unsupported-question handling, and source-page citations.
+```powershell
+python -m pytest -p no:anyio
+python -m ruff check .
+```
 
-Real requests use API credits. This project does not make a live request automatically during tests.
+GitHub Actions runs these checks for pushes and pull requests.
 
-## Learning plan
+## Configuration
 
-See [docs/learning-plan.md](docs/learning-plan.md) for the high-level architecture, first-week plan, and book topics to study before the next feature.
+The application reads configuration from environment variables or `.env`:
 
-See [docs/architecture.md](docs/architecture.md) for the complete data flow, module responsibilities, trade-offs, and current limitations.
+```text
+AI_PROVIDER=openrouter
+OPENROUTER_API_KEY=your-key
+OPENROUTER_MODEL=deepseek/deepseek-v3.2
+OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small
+```
 
-For a detailed beginner-friendly explanation of the code and self-check quiz, read [docs/learning-walkthrough.md](docs/learning-walkthrough.md).
+See [docs/openrouter-setup.md](docs/openrouter-setup.md) for provider setup and [docs/deployment.md](docs/deployment.md) for Streamlit Community Cloud deployment.
 
-## Continuous integration
+## Limitations
 
-GitHub Actions runs the test suite and Ruff on pushes and pull requests. The repository intentionally excludes `.env`, local databases, virtual environments, and reference PDFs.
+- Scanned or image-only PDFs require OCR, which is not included.
+- Streamlit sessions use in-memory indexes and are not permanent.
+- SQLite and linear vector search are intended for small deployments, not large-scale production traffic.
+- There is no authentication, per-user document isolation, malware scanning, or rate limiting.
+- Broad requests such as “list every item in the document” may require a document-wide retrieval strategy rather than a small set of top-matching chunks.
+
+## Repository layout
+
+```text
+src/ai_document_assistant/   application code
+tests/                       automated tests
+data/evaluation.example.json evaluation file template
+docs/                        architecture, setup, and deployment documentation
+```

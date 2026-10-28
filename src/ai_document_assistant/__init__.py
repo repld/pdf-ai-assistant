@@ -1,4 +1,4 @@
-"""Small learning milestone for the AI Document Assistant."""
+"""Grounded question answering over uploaded documents."""
 
 from .assistant import ConfigurationError, ask_question
 

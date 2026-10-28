@@ -1,4 +1,4 @@
-"""Core question-answering function for the first AI milestone."""
+"""Core direct question-answering service."""
 
 from __future__ import annotations
 

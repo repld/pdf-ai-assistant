@@ -6,6 +6,7 @@ __pycache__/
 *.egg-info/
 .env
 *.local
+.streamlit/secrets.toml
 
 # Local reference books; do not commit copyrighted PDFs.
 *.pdf

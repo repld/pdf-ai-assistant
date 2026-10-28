@@ -1,6 +1,6 @@
 # Deploying the Streamlit UI
 
-Streamlit Community Cloud deploys from a published GitHub repository. The local project currently has no GitHub remote, so deployment cannot start until the repository is created and pushed.
+Streamlit Community Cloud deploys from the project’s published GitHub repository.
 
 ## 1. Create and publish the GitHub repository
 

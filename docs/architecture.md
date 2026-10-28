@@ -48,7 +48,7 @@ The important seam is `RAGAssistant`. Its callers do not need to know whether ve
 - The model receives retrieved excerpts rather than the entire PDF. This reduces context size and makes citations possible, but answer quality depends on extraction, chunking, embeddings, and retrieval.
 - A model answer without valid numbered citations is discarded and replaced with the unsupported-answer response. This is a safety check, not proof that a cited answer is factually correct.
 - The answer object keeps retrieved chunk IDs separate from displayed citations, so evaluation can distinguish a retrieval miss from a model-citation miss.
-- The Streamlit interface stores the current assistant and chat messages in per-browser session state. It intentionally uses an in-memory index for this learning demo; the CLI and FastAPI paths support SQLite persistence.
+- The Streamlit interface stores the current assistant and chat messages in per-browser session state. It uses an in-memory index for simple, isolated browser sessions; the CLI and FastAPI paths support SQLite persistence.
 - Provider requests use a 30-second timeout and limited SDK retries so a web request does not wait indefinitely.
 
 ## Current limitations
