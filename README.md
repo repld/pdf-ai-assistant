@@ -139,6 +139,10 @@ The API supports optional bearer authentication, validated session IDs, per-sess
 SQLite databases, session limits, request limits, upload limits, question limits, and
 prompts that treat document text as untrusted data.
 
+The application accepts PDF files up to 100 MB. Streamlit's upload transport is configured
+to the same limit. Larger documents use larger embedding batches and retrieval chunks to
+reduce provider round trips while preserving page citations.
+
 ## Testing and code quality
 
 The test suite uses fake provider clients for network-free, predictable tests:

@@ -20,9 +20,9 @@ from pypdf.errors import PdfReadError
 from ai_document_assistant.application import build_rag_assistant, index_uploaded_pdf
 from ai_document_assistant.assistant import ConfigurationError
 from ai_document_assistant.documents import DocumentError
+from ai_document_assistant.limits import MAX_UPLOAD_BYTES, UPLOAD_LIMIT_MB
 from ai_document_assistant.rag import RAGAnswer, RAGAssistant
 
-MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 CHAT_PANEL_HEIGHT = 500
 PDF_VIEWER_HEIGHT = 620
 PDF_READING_HEIGHT = 900
@@ -55,9 +55,13 @@ def _index_upload(
     if Path(filename).suffix.lower() != ".pdf":
         raise DocumentError("only PDF files are supported")
 
+    reported_size = getattr(uploaded_file, "size", None)
+    if isinstance(reported_size, int) and reported_size > MAX_UPLOAD_BYTES:
+        raise DocumentError(f"PDF exceeds the {UPLOAD_LIMIT_MB} MB limit")
+
     content = uploaded_file.getvalue()
     if len(content) > MAX_UPLOAD_BYTES:
-        raise DocumentError("PDF exceeds the 20 MB limit")
+        raise DocumentError(f"PDF exceeds the {UPLOAD_LIMIT_MB} MB limit")
 
     file_hash = hashlib.sha256(content).hexdigest()
     if file_hash == st.session_state.get("indexed_file_hash"):

@@ -8,6 +8,10 @@ __pycache__/
 *.local
 .streamlit/secrets.toml
 
+# Private learning notes; keep these out of the public repository.
+docs/personal-learning-guide.md
+docs/project-crash-course.md
+
 # Local reference books; do not commit copyrighted PDFs.
 *.pdf
 

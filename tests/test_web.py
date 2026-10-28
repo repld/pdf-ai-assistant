@@ -98,6 +98,18 @@ def test_upload_endpoint_preserves_original_filename(monkeypatch) -> None:
     assert source_names == ["original.pdf"]
 
 
+def test_upload_endpoint_rejects_content_above_the_configured_limit(monkeypatch) -> None:
+    monkeypatch.setattr(web, "MAX_UPLOAD_BYTES", 4)
+    client = TestClient(create_app(FakeAssistant()))
+
+    response = client.post(
+        "/documents",
+        files={"file": ("large.pdf", b"12345", "application/pdf")},
+    )
+
+    assert response.status_code == 413
+
+
 def test_api_authentication_is_enforced_when_configured() -> None:
     client = TestClient(create_app(FakeAssistant(), auth_token="secret"))
 

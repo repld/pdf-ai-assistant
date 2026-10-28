@@ -145,6 +145,21 @@ def test_openai_embedder_sends_large_inputs_in_batches() -> None:
     assert [len(call["input"]) for call in client.embeddings.calls] == [64, 1]
 
 
+def test_openai_embedder_reports_completed_batches() -> None:
+    client = BatchEmbeddingClient()
+    embedder = OpenAIEmbedder(client=client, model="test-embedding-model", batch_size=2)
+    progress: list[str] = []
+
+    vectors = embedder.embed_with_progress([str(index) for index in range(5)], progress.append)
+
+    assert len(vectors) == 5
+    assert progress == [
+        "Embedded batch 1 of 3...",
+        "Embedded batch 2 of 3...",
+        "Embedded batch 3 of 3...",
+    ]
+
+
 def test_openai_answerer_sends_numbered_context_and_returns_text() -> None:
     client = FakeAnswerClient()
     answerer = OpenAIAnswerer(client=client, model="test-model")

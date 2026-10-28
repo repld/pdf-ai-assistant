@@ -15,9 +15,9 @@ from pydantic import BaseModel, Field
 
 from .application import build_rag_assistant, index_uploaded_pdf
 from .documents import DocumentError
+from .limits import MAX_UPLOAD_BYTES, UPLOAD_LIMIT_MB
 from .rag import RAGAssistant
 
-MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 DEFAULT_SESSION_ID = "default"
 MAX_SESSIONS = 100
 MAX_REQUESTS_PER_MINUTE = 60
@@ -143,7 +143,10 @@ def create_app(assistant: Any | None = None, *, auth_token: str | None = None) -
 
         content = await file.read(MAX_UPLOAD_BYTES + 1)
         if len(content) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="PDF exceeds the 20 MB limit")
+            raise HTTPException(
+                status_code=413,
+                detail=f"PDF exceeds the {UPLOAD_LIMIT_MB} MB limit",
+            )
 
         source_name = Path(file.filename or "document.pdf").name
         suffix = Path(source_name).suffix.lower()

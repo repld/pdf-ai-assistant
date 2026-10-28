@@ -85,10 +85,20 @@ class RAGAssistant:
         self._telemetry = telemetry or LoggingTelemetry()
         self._model_name = model_name
 
-    def index(self, chunks: Sequence[DocumentChunk]) -> None:
+    def index(
+        self,
+        chunks: Sequence[DocumentChunk],
+        *,
+        progress: Callable[[str], None] | None = None,
+    ) -> None:
         if not chunks:
             raise ValueError("at least one document chunk is required")
-        vectors = self._embedder.embed([chunk.text for chunk in chunks])
+        texts = [chunk.text for chunk in chunks]
+        embed_with_progress = getattr(self._embedder, "embed_with_progress", None)
+        if progress is not None and callable(embed_with_progress):
+            vectors = embed_with_progress(texts, progress)
+        else:
+            vectors = self._embedder.embed(texts)
         self._store.add(chunks, vectors)
 
     def answer(

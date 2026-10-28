@@ -65,7 +65,7 @@ def index_uploaded_pdf(
     content: bytes,
     *,
     source_name: str,
-    max_chars: int = 1200,
+    max_chars: int = 1600,
     overlap: int = 200,
     progress: Callable[[str], None] | None = None,
 ) -> IndexingSummary:
@@ -85,7 +85,7 @@ def index_uploaded_pdf(
         chunks = chunk_pages(pages, max_chars=max_chars, overlap=overlap)
         if progress:
             progress(f"Embedding and indexing {len(chunks)} chunks...")
-        assistant.index(chunks)
+        assistant.index(chunks, progress=progress)
         logger.info("Indexed uploaded document %s", source_name)
         return IndexingSummary(page_count=len(pages), chunk_count=len(chunks))
     finally:

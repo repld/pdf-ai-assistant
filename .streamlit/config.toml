@@ -1,2 +1,6 @@
 [browser]
 gatherUsageStats = false
+
+[server]
+# Keep the Streamlit transport limit aligned with the application's 100 MB PDF limit.
+maxUploadSize = 100
