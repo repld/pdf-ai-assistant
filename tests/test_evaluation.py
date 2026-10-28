@@ -27,7 +27,12 @@ def test_evaluation_reports_retrieval_hit_rate_and_answer_rate() -> None:
         }
     )
     cases = [
-        EvaluationCase("python", "What is Python?", frozenset({"python"})),
+        EvaluationCase(
+            "python",
+            "What is Python?",
+            frozenset({"python"}),
+            required_facts=frozenset({"programming language"}),
+        ),
         EvaluationCase("missing", "What is missing?", frozenset({"missing"})),
     ]
 
@@ -35,19 +40,36 @@ def test_evaluation_reports_retrieval_hit_rate_and_answer_rate() -> None:
 
     assert report.case_count == 2
     assert report.retrieval_hit_rate == 0.5
-    assert report.answer_rate == 1.0
+    assert report.retrieval_recall == 0.5
+    assert report.answer_rate == 0.5
     assert report.citation_rate == 0.5
+    assert report.citation_coverage == 0.5
+    assert report.required_fact_rate == 1.0
+    assert report.failure_counts == {
+        "citation_miss": 1,
+        "retrieval_miss": 1,
+        "unsupported_answer": 1,
+    }
     assert report.results[0].retrieval_hit is True
     assert report.results[0].citations_present is True
     assert report.results[1].retrieval_hit is False
     assert report.results[1].citations_present is False
+    assert "retrieval_miss" in report.to_markdown()
 
 
 def test_load_cases_reads_json_file(tmp_path) -> None:
     path = tmp_path / "evaluation.json"
     path.write_text(
-        '[{"case_id": "one", "question": "What?", "expected_chunk_ids": ["c1"]}]',
+        '[{"case_id": "one", "question": "What?", '
+        '"expected_chunk_ids": ["c1"], "required_facts": ["fact"]}]',
         encoding="utf-8",
     )
 
-    assert load_cases(path) == [EvaluationCase("one", "What?", frozenset({"c1"}))]
+    assert load_cases(path) == [
+        EvaluationCase(
+            "one",
+            "What?",
+            frozenset({"c1"}),
+            required_facts=frozenset({"fact"}),
+        )
+    ]

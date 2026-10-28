@@ -55,10 +55,17 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="JSON evaluation file; requires --database",
     )
+    parser.add_argument(
+        "--evaluation-report",
+        type=Path,
+        help="write a Markdown evaluation report; requires --evaluate",
+    )
     args = parser.parse_args(argv)
 
     if args.evaluate and args.database is None:
         parser.error("--evaluate requires --database")
+    if args.evaluation_report and args.evaluate is None:
+        parser.error("--evaluation-report requires --evaluate")
 
     if args.pdf or args.database or args.evaluate:
         try:
@@ -88,13 +95,22 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             print(f"Cases: {report.case_count}")
             print(f"Retrieval hit rate: {report.retrieval_hit_rate:.1%}")
-            print(f"Answer rate: {report.answer_rate:.1%}")
+            print(f"Retrieval recall: {report.retrieval_recall:.1%}")
+            print(f"Supported answer rate: {report.answer_rate:.1%}")
             print(f"Citation rate: {report.citation_rate:.1%}")
+            print(f"Citation coverage: {report.citation_coverage:.1%}")
+            print(f"Required-fact coverage: {report.required_fact_rate:.1%}")
+            for reason, count in report.failure_counts.items():
+                print(f"Failure {reason}: {count}")
             for result in report.results:
                 print(
                     f"- {result.case_id}: retrieval={'yes' if result.retrieval_hit else 'no'}, "
-                    f"citations={'yes' if result.citations_present else 'no'}"
+                    f"recall={result.retrieval_recall:.1%}, "
+                    f"citations={result.citation_coverage:.1%}"
                 )
+            if args.evaluation_report:
+                args.evaluation_report.parent.mkdir(parents=True, exist_ok=True)
+                args.evaluation_report.write_text(report.to_markdown(), encoding="utf-8")
             return 0
 
         def ask_documents(question: str) -> str:

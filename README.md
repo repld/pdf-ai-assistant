@@ -7,9 +7,12 @@ Live demo: [pdfaiassist.streamlit.app](https://pdfaiassist.streamlit.app/)
 ## Features
 
 - Streamlit browser interface for PDF upload and chat
+- Side-by-side PDF page viewer linked to answer citations
+- Indexing progress, document metadata, suggested questions, and answer feedback
 - PDF text extraction with page metadata preserved for citations
 - Overlapping text chunking
 - Embedding-based similarity search
+- Hybrid semantic and keyword retrieval
 - Retrieval-augmented generation (RAG)
 - Answers grounded in retrieved document excerpts
 - Numbered source citations with source filename and page number
@@ -56,7 +59,7 @@ streamlit run src\ai_document_assistant\ui.py
 
 On Windows, double-click `start-assistant.vbs` to start the application without leaving a command window open. Upload a PDF, wait for indexing to finish, and ask questions in the chat interface.
 
-The browser interface keeps the current document and messages in memory for that browser session. Restarting the app clears the session.
+The browser interface shows the selected cited page beside the chat. Citation buttons change the page shown in the viewer. The current document and messages stay in memory for that browser session; restarting the app clears the session.
 
 ## Run the command-line application
 
@@ -100,6 +103,11 @@ Endpoints:
 - `POST /documents` - upload a PDF as the multipart field `file`
 - `POST /ask` - ask a question, for example `{"question": "What is the main idea?"}`
 
+API requests may include an `X-Session-ID` header to isolate document indexes. If
+`API_AUTH_TOKEN` is configured, send `Authorization: Bearer <token>` with every
+request. Session IDs provide isolation, not identity; use the bearer token and a
+real identity provider for public deployments.
+
 Docker support is available through `Dockerfile` and `docker-compose.yml`.
 
 ## Evaluation
@@ -109,10 +117,23 @@ Create a JSON evaluation file using [data/evaluation.example.json](data/evaluati
 ```powershell
 python -m ai_document_assistant `
   --database data\assistant.db `
-  --evaluate data\evaluation.json
+  --evaluate data\evaluation.json `
+  --evaluation-report data\evaluation-report.md
 ```
 
-The report measures retrieval hits, answer presence, and citation presence. These metrics are useful signals but do not replace human review of factual accuracy.
+The report measures retrieval hits and recall, supported-answer rate, citation coverage,
+required-fact coverage, and categorized failures. These metrics are useful signals but
+do not replace human review of factual accuracy.
+
+## Observability and security
+
+RAG requests emit structured telemetry for duration, retrieval time, generation time,
+retrieved chunk count, citation count, and outcome status. The telemetry seam can be
+connected to a production collector without changing `RAGAssistant`.
+
+The API supports optional bearer authentication, validated session IDs, per-session
+SQLite databases, session limits, request limits, upload limits, question limits, and
+prompts that treat document text as untrusted data.
 
 ## Testing and code quality
 
@@ -134,6 +155,7 @@ AI_PROVIDER=openrouter
 OPENROUTER_API_KEY=your-key
 OPENROUTER_MODEL=deepseek/deepseek-v3.2
 OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small
+API_AUTH_TOKEN=change-me-before-public-deployment
 ```
 
 See [docs/openrouter-setup.md](docs/openrouter-setup.md) for provider setup and [docs/deployment.md](docs/deployment.md) for Streamlit Community Cloud deployment.
@@ -143,8 +165,10 @@ See [docs/openrouter-setup.md](docs/openrouter-setup.md) for provider setup and 
 - Scanned or image-only PDFs require OCR, which is not included.
 - Streamlit sessions use in-memory indexes and are not permanent.
 - SQLite and linear vector search are intended for small deployments, not large-scale production traffic.
-- There is no authentication, per-user document isolation, malware scanning, or rate limiting.
-- Broad requests such as “list every item in the document” may require a document-wide retrieval strategy rather than a small set of top-matching chunks.
+- Authentication is opt-in through `API_AUTH_TOKEN`; a production deployment should connect it to a real identity provider.
+- Session isolation and rate limiting are in-process controls; distributed deployments need shared session and rate-limit storage.
+- There is no malware scanning for uploaded files.
+- Broad requests such as “list every item in the document” use a wider retrieval window, but they can still be incomplete when items are spread across many pages.
 
 ## Repository layout
 

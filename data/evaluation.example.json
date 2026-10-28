@@ -2,6 +2,8 @@
   {
     "case_id": "replace-me",
     "question": "Replace this with a question answerable from your PDF.",
-    "expected_chunk_ids": ["your-file.pdf:p1:c1"]
+    "expected_chunk_ids": ["your-file.pdf:p1:c1"],
+    "reference_answer": "Write the answer you expect a grounded system to produce.",
+    "required_facts": ["important fact", "another fact"]
   }
 ]

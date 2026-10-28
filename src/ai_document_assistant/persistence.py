@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from .documents import DocumentChunk
-from .retrieval import SearchResult, cosine_similarity
+from .retrieval import SearchResult, hybrid_score
 
 
 class SQLiteVectorStore:
@@ -60,6 +60,7 @@ class SQLiteVectorStore:
         self,
         query_vector: Sequence[float],
         *,
+        query_text: str | None = None,
         limit: int = 3,
         min_score: float = 0.0,
     ) -> list[SearchResult]:
@@ -72,7 +73,7 @@ class SQLiteVectorStore:
         results: list[SearchResult] = []
         for chunk_id, source, page_number, text, vector_json in rows:
             vector = json.loads(vector_json)
-            score = cosine_similarity(query_vector, vector)
+            score = hybrid_score(query_vector, vector, query_text, text)
             if score >= min_score:
                 results.append(
                     SearchResult(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
@@ -29,6 +30,7 @@ class VectorStore(Protocol):
         self,
         query_vector: Sequence[float],
         *,
+        query_text: str | None = None,
         limit: int = 3,
         min_score: float = 0.0,
     ) -> list[SearchResult]: ...
@@ -63,6 +65,7 @@ class InMemoryVectorStore:
         self,
         query_vector: Sequence[float],
         *,
+        query_text: str | None = None,
         limit: int = 3,
         min_score: float = 0.0,
     ) -> list[SearchResult]:
@@ -75,7 +78,7 @@ class InMemoryVectorStore:
 
         results = []
         for chunk, vector in self._items:
-            score = cosine_similarity(query_vector, vector)
+            score = hybrid_score(query_vector, vector, query_text, chunk.text)
             if score >= min_score:
                 results.append(SearchResult(chunk=chunk, score=score))
 
@@ -96,3 +99,27 @@ def cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
 
     dot = sum(left_value * right_value for left_value, right_value in zip(left, right, strict=True))
     return dot / (left_norm * right_norm)
+
+
+_TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
+
+
+def hybrid_score(
+    query_vector: Sequence[float],
+    document_vector: Sequence[float],
+    query_text: str | None,
+    document_text: str,
+) -> float:
+    """Combine semantic similarity with lightweight keyword overlap."""
+
+    semantic_score = max(cosine_similarity(query_vector, document_vector), 0.0)
+    if not query_text:
+        return semantic_score
+
+    query_terms = set(_TOKEN_PATTERN.findall(query_text.lower()))
+    document_terms = set(_TOKEN_PATTERN.findall(document_text.lower()))
+    if not query_terms:
+        return semantic_score
+
+    lexical_score = len(query_terms & document_terms) / len(query_terms)
+    return 0.75 * semantic_score + 0.25 * lexical_score

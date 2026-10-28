@@ -150,6 +150,23 @@ def test_in_memory_store_returns_most_similar_chunks_first() -> None:
     assert results[1].score == pytest.approx(2**-0.5)
 
 
+def test_in_memory_store_uses_keyword_overlap_with_semantic_similarity() -> None:
+    store = InMemoryVectorStore()
+    chunks = [
+        chunk("language", "Python is a programming language."),
+        chunk("creator", "Python was created by Guido van Rossum."),
+    ]
+    store.add(chunks, [[1.0, 0.0], [1.0, 0.0]])
+
+    results = store.search(
+        [1.0, 0.0],
+        query_text="Who created Python?",
+        limit=1,
+    )
+
+    assert [result.chunk.chunk_id for result in results] == ["creator"]
+
+
 def test_in_memory_store_rejects_mismatched_vectors() -> None:
     store = InMemoryVectorStore()
 

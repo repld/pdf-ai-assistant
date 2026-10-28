@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from ai_document_assistant.documents import DocumentChunk
+from ai_document_assistant.observability import InMemoryTelemetry
 from ai_document_assistant.rag import UNSUPPORTED_ANSWER, RAGAssistant
 
 
@@ -51,9 +52,66 @@ def test_rag_assistant_retrieves_context_and_returns_citations() -> None:
 
     assert result.answer == "Python is a programming language. [1]"
     assert result.citations[0].chunk_id == "python"
+    assert result.citations[0].text == "Python is a programming language."
+    assert result.citations[0].score is not None
+    assert result.citations[0].score >= 0.5
     assert result.retrieved_chunk_ids == ("python",)
+    assert result.diagnostics is not None
+    assert result.diagnostics.total_ms >= 0
     assert answerer.questions == ["What is Python?"]
     assert [item.chunk_id for item in answerer.contexts[0]] == ["python"]
+
+
+def test_rag_assistant_retrieves_more_context_for_exhaustive_list_questions() -> None:
+    answerer = FakeAnswerer([], [])
+    assistant = RAGAssistant(
+        embedder=FakeEmbedder(),
+        answerer=answerer,
+        min_score=0.5,
+    )
+    assistant.index(
+        [chunk(f"item-{index}", f"Python feature {index}") for index in range(25)]
+    )
+
+    result = assistant.answer("List every Python feature.")
+
+    assert len(answerer.contexts[0]) == 20
+    assert len(result.retrieved_chunk_ids) == 20
+
+
+def test_rag_assistant_keeps_normal_context_limit_for_focused_questions() -> None:
+    answerer = FakeAnswerer([], [])
+    assistant = RAGAssistant(
+        embedder=FakeEmbedder(),
+        answerer=answerer,
+        min_score=0.5,
+    )
+    assistant.index(
+        [chunk(f"item-{index}", f"Python feature {index}") for index in range(25)]
+    )
+
+    assistant.answer("What is Python?")
+
+    assert len(answerer.contexts[0]) == 5
+
+
+def test_rag_assistant_records_request_metrics() -> None:
+    telemetry = InMemoryTelemetry()
+    assistant = RAGAssistant(
+        embedder=FakeEmbedder(),
+        answerer=FakeAnswerer([], []),
+        telemetry=telemetry,
+        min_score=0.5,
+    )
+    assistant.index([chunk("python", "Python is a programming language.")])
+
+    assistant.answer("What is Python?")
+
+    observation = telemetry.observations[-1]
+    assert observation.event == "rag.answer"
+    assert observation.attributes["status"] == "success"
+    assert observation.attributes["retrieved_count"] == 1
+    assert observation.attributes["citation_count"] == 1
 
 
 def test_rag_assistant_declines_when_no_relevant_context_exists() -> None:
@@ -84,7 +142,7 @@ class CitingAnswerer:
 def test_rag_assistant_returns_only_model_cited_sources() -> None:
     assistant = RAGAssistant(
         embedder=FakeEmbedder(),
-        answerer=CitingAnswerer("The answer is in the second excerpt. [2]"),
+        answerer=CitingAnswerer("The answer is in the cited excerpt. [1]"),
         min_score=0.5,
     )
     assistant.index(
@@ -97,7 +155,7 @@ def test_rag_assistant_returns_only_model_cited_sources() -> None:
     result = assistant.answer("Who created Python?")
 
     assert [citation.chunk_id for citation in result.citations] == ["second"]
-    assert result.retrieved_chunk_ids == ("first", "second")
+    assert result.retrieved_chunk_ids == ("second", "first")
 
 
 def test_rag_assistant_rejects_an_answer_without_valid_citations() -> None:
@@ -110,4 +168,7 @@ def test_rag_assistant_rejects_an_answer_without_valid_citations() -> None:
 
     result = assistant.answer("What is Python?")
 
-    assert result == type(result)(answer=UNSUPPORTED_ANSWER, citations=(), retrieved_chunk_ids=("python",))
+    assert result.answer == UNSUPPORTED_ANSWER
+    assert result.citations == ()
+    assert result.retrieved_chunk_ids == ("python",)
+    assert result.diagnostics is not None
