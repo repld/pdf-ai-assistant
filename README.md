@@ -59,7 +59,7 @@ streamlit run src\ai_document_assistant\ui.py
 
 On Windows, double-click `start-assistant.vbs` to start the application without leaving a command window open. Upload a PDF, wait for indexing to finish, and ask questions in the chat interface.
 
-The browser interface shows the selected cited page beside the chat. Citation buttons change the page shown in the viewer. The current document and messages stay in memory for that browser session; restarting the app clears the session.
+The browser interface prioritizes the chat while keeping the selected cited page available as a compact reference panel. The conversation uses a fixed-height scrollable panel so long answers and source cards do not push the question input indefinitely down the page. Citation buttons change the page shown in the viewer. The current document and messages stay in memory for that browser session; restarting the app clears the session.
 
 ## Run the command-line application
 

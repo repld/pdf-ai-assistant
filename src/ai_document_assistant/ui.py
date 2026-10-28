@@ -21,6 +21,8 @@ from ai_document_assistant.documents import DocumentError
 from ai_document_assistant.rag import RAGAnswer, RAGAssistant
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+CHAT_PANEL_HEIGHT = 800
+PDF_VIEWER_HEIGHT = 500
 SUGGESTED_QUESTIONS = (
     "What is the main idea of this document?",
     "List every major concept covered in the document.",
@@ -153,7 +155,7 @@ def _display_document_viewer() -> None:
     if not pdf_bytes or page_count <= 0:
         return
 
-    st.subheader("Document")
+    st.subheader("Reference document")
     if int(st.session_state.get("selected_page", 1)) > page_count:
         st.session_state["selected_page"] = 1
     selected_page = st.number_input(
@@ -185,7 +187,7 @@ def _display_document_viewer() -> None:
 
     pdf_viewer(
         page_bytes,
-        height=650,
+        height=PDF_VIEWER_HEIGHT,
         key="selected-page-viewer",
         alt=f"Page {selected_page} of {source}",
     )
@@ -320,50 +322,53 @@ def main() -> None:
         st.info("Upload a PDF to start asking questions.")
         return
 
-    document_column, chat_column = st.columns([1.1, 0.9], gap="large")
+    document_column, chat_column = st.columns([0.75, 1.7], gap="large")
     with document_column:
         _display_document_viewer()
 
     with chat_column:
         st.subheader("Ask questions")
-        _display_chat_history()
+        chat_panel = st.container(height=CHAT_PANEL_HEIGHT, border=True)
+        with chat_panel:
+            _display_chat_history()
         suggested_question = _display_suggested_questions()
         question = suggested_question or st.chat_input("Ask a question about the PDF")
         if question is None:
             return
 
         st.session_state["messages"].append({"role": "user", "content": question})
-        with st.chat_message("user"):
-            st.markdown(question)
+        with chat_panel:
+            with st.chat_message("user"):
+                st.markdown(question)
 
-        assistant_message: dict[str, object] = {
-            "role": "assistant",
-            "question": question,
-        }
-        with st.chat_message("assistant"), st.status(
-            "Preparing answer...", expanded=False
-        ) as answer_status:
-            try:
-                answer_status.write("Searching the document...")
-                result = _get_assistant().answer(question)
-            except (OpenAIError, RuntimeError, ValueError):
-                answer_status.update(label="Answer failed", state="error")
-                logger.exception("Failed to answer a UI question")
-                st.error("The AI provider failed while answering the question.")
-                return
-            answer_status.update(label="Answer ready", state="complete")
-            _display_answer(result, f"current-{len(st.session_state['messages'])}")
-            assistant_message["content"] = result.answer
-            assistant_message["citations"] = [
-                {
-                    "source": citation.source,
-                    "page_number": citation.page_number,
-                    "text": citation.text,
-                    "score": citation.score,
-                }
-                for citation in result.citations
-            ]
-            _display_feedback(assistant_message, "current-answer")
+            assistant_message: dict[str, object] = {
+                "role": "assistant",
+                "question": question,
+            }
+            with st.chat_message("assistant"), st.status(
+                "Preparing answer...", expanded=False
+            ) as answer_status:
+                try:
+                    answer_status.write("Searching the document...")
+                    result = _get_assistant().answer(question)
+                except (OpenAIError, RuntimeError, ValueError):
+                    answer_status.update(label="Answer failed", state="error")
+                    logger.exception("Failed to answer a UI question")
+                    st.error("The AI provider failed while answering the question.")
+                    return
+                answer_status.update(label="Answer ready", state="complete")
+                _display_answer(result, f"current-{len(st.session_state['messages'])}")
+                assistant_message["content"] = result.answer
+                assistant_message["citations"] = [
+                    {
+                        "source": citation.source,
+                        "page_number": citation.page_number,
+                        "text": citation.text,
+                        "score": citation.score,
+                    }
+                    for citation in result.citations
+                ]
+                _display_feedback(assistant_message, "current-answer")
 
         st.session_state["messages"].append(assistant_message)
 
