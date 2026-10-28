@@ -9,8 +9,8 @@ Live demo: [pdfaiassist.streamlit.app](https://pdfaiassist.streamlit.app/)
 - Streamlit browser interface for PDF upload and chat
 - Reader-focused PDF workspace with a secondary question panel
 - Citation-driven page navigation and highlighted supporting excerpts
-- Search, table-of-contents navigation, layout controls, and reading mode
-- Indexing progress, document metadata, and answer feedback
+- Search with previous/next match navigation, table-of-contents navigation, layout controls, and reading mode
+- Streaming answers when supported, token diagnostics, indexing progress, document metadata, and answer feedback
 - PDF text extraction with page metadata preserved for citations
 - Overlapping text chunking
 - Embedding-based similarity search
@@ -130,8 +130,10 @@ do not replace human review of factual accuracy.
 ## Observability and security
 
 RAG requests emit structured telemetry for duration, retrieval time, generation time,
-retrieved chunk count, citation count, and outcome status. The telemetry seam can be
-connected to a production collector without changing `RAGAssistant`.
+retrieved chunk count, citation count, provider-reported token usage when available,
+and outcome status. Provider adapters stream answer text when supported while preserving
+final citation validation. The telemetry seam can be connected to a production collector
+without changing `RAGAssistant`.
 
 The API supports optional bearer authentication, validated session IDs, per-session
 SQLite databases, session limits, request limits, upload limits, question limits, and

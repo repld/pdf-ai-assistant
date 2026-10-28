@@ -62,7 +62,10 @@ class FakeResponses:
 
     def create(self, **kwargs: object) -> SimpleNamespace:
         self.calls.append(kwargs)
-        return SimpleNamespace(output_text="The answer is grounded. [1]")
+        return SimpleNamespace(
+            output_text="The answer is grounded. [1]",
+            usage=SimpleNamespace(input_tokens=12, output_tokens=4, total_tokens=16),
+        )
 
 
 class FakeAnswerClient:
@@ -77,13 +80,43 @@ class FakeChatCompletions:
     def create(self, **kwargs: object) -> SimpleNamespace:
         self.calls.append(kwargs)
         return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content="Chat answer [1]"))]
+            choices=[SimpleNamespace(message=SimpleNamespace(content="Chat answer [1]"))],
+            usage=SimpleNamespace(prompt_tokens=10, completion_tokens=3, total_tokens=13),
         )
 
 
 class FakeChatClient:
     def __init__(self) -> None:
         self.chat = SimpleNamespace(completions=FakeChatCompletions())
+
+
+class FakeStreamingChatCompletions:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def create(self, **kwargs: object) -> object:
+        self.calls.append(kwargs)
+        return iter(
+            [
+                SimpleNamespace(
+                    choices=[SimpleNamespace(delta=SimpleNamespace(content="Streamed "))],
+                    usage=None,
+                ),
+                SimpleNamespace(
+                    choices=[SimpleNamespace(delta=SimpleNamespace(content="answer [1]"))],
+                    usage=None,
+                ),
+                SimpleNamespace(
+                    choices=[],
+                    usage=SimpleNamespace(prompt_tokens=11, completion_tokens=5, total_tokens=16),
+                ),
+            ]
+        )
+
+
+class FakeStreamingChatClient:
+    def __init__(self) -> None:
+        self.chat = SimpleNamespace(completions=FakeStreamingChatCompletions())
 
 
 def test_openai_embedder_batches_text_and_restores_input_order() -> None:
@@ -119,6 +152,7 @@ def test_openai_answerer_sends_numbered_context_and_returns_text() -> None:
     answer = answerer.answer("What is Python?", [chunk("python", "Python is a language.")])
 
     assert answer == "The answer is grounded. [1]"
+    assert answerer.last_usage == {"input_tokens": 12, "output_tokens": 4, "total_tokens": 16}
     call = client.responses.calls[0]
     assert call["model"] == "test-model"
     assert "[1] guide.pdf, page 1" in str(call["input"])
@@ -131,11 +165,28 @@ def test_chat_completion_answerer_returns_openrouter_style_answer() -> None:
     answer = answerer.answer("What is Python?", [chunk("python", "Python is a language.")])
 
     assert answer == "Chat answer [1]"
+    assert answerer.last_usage == {"input_tokens": 10, "output_tokens": 3, "total_tokens": 13}
     call = client.chat.completions.calls[0]
     assert call["model"] == "deepseek/deepseek-v3.2"
     assert call["messages"][0]["role"] == "system"
     assert "Every factual answer must cite" in call["messages"][0]["content"]
     assert "[1] guide.pdf, page 1" in call["messages"][1]["content"]
+
+
+def test_chat_completion_answerer_streams_text_and_usage() -> None:
+    client = FakeStreamingChatClient()
+    answerer = ChatCompletionAnswerer(client=client, model="deepseek/deepseek-v3.2")
+    tokens: list[str] = []
+
+    answer = answerer.answer_stream(
+        "What is Python?",
+        [chunk("python", "Python is a language.")],
+        tokens.append,
+    )
+
+    assert answer == "Streamed answer [1]"
+    assert tokens == ["Streamed ", "answer [1]"]
+    assert answerer.last_usage == {"input_tokens": 11, "output_tokens": 5, "total_tokens": 16}
 
 
 def test_in_memory_store_returns_most_similar_chunks_first() -> None:

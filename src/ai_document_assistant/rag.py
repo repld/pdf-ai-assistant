@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -50,6 +50,9 @@ class AnswerDiagnostics:
     retrieval_ms: float
     generation_ms: float
     model: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
 
 
 @dataclass(frozen=True)
@@ -88,7 +91,13 @@ class RAGAssistant:
         vectors = self._embedder.embed([chunk.text for chunk in chunks])
         self._store.add(chunks, vectors)
 
-    def answer(self, question: str, *, top_k: int = 5) -> RAGAnswer:
+    def answer(
+        self,
+        question: str,
+        *,
+        top_k: int = 5,
+        on_token: Callable[[str], None] | None = None,
+    ) -> RAGAnswer:
         request_id = uuid.uuid4().hex[:12]
         started_at = time.perf_counter()
         retrieval_ms = 0.0
@@ -96,6 +105,7 @@ class RAGAssistant:
         retrieved_count = 0
         citation_count = 0
         status = "error"
+        usage: dict[str, int] | None = None
 
         def record_metrics() -> AnswerDiagnostics:
             diagnostics = AnswerDiagnostics(
@@ -104,6 +114,9 @@ class RAGAssistant:
                 retrieval_ms=round(retrieval_ms, 2),
                 generation_ms=round(generation_ms, 2),
                 model=self._model_name,
+                input_tokens=usage.get("input_tokens") if usage else None,
+                output_tokens=usage.get("output_tokens") if usage else None,
+                total_tokens=usage.get("total_tokens") if usage else None,
             )
             self._record_answer_metrics(
                 request_id=request_id,
@@ -113,6 +126,9 @@ class RAGAssistant:
                 retrieved_count=retrieved_count,
                 citation_count=citation_count,
                 status=status,
+                input_tokens=usage.get("input_tokens") if usage else None,
+                output_tokens=usage.get("output_tokens") if usage else None,
+                total_tokens=usage.get("total_tokens") if usage else None,
             )
             return diagnostics
 
@@ -153,7 +169,12 @@ class RAGAssistant:
         retrieved_chunk_ids = tuple(chunk.chunk_id for chunk in context)
         generation_started_at = time.perf_counter()
         try:
-            answer = self._answerer.answer(question, context)
+            answer_stream = getattr(self._answerer, "answer_stream", None)
+            if on_token is not None and callable(answer_stream):
+                answer = answer_stream(question, context, on_token)
+            else:
+                answer = self._answerer.answer(question, context)
+            usage = getattr(self._answerer, "last_usage", None)
         except Exception:
             generation_ms = _elapsed_ms(generation_started_at)
             record_metrics()
@@ -194,6 +215,9 @@ class RAGAssistant:
         retrieved_count: int,
         citation_count: int,
         status: str,
+        input_tokens: int | None,
+        output_tokens: int | None,
+        total_tokens: int | None,
     ) -> None:
         self._telemetry.record(
             "rag.answer",
@@ -204,6 +228,9 @@ class RAGAssistant:
             retrieved_count=retrieved_count,
             citation_count=citation_count,
             status=status,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
         )
 
 

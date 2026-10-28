@@ -15,6 +15,7 @@ from typing import Any
 import streamlit as st
 from openai import OpenAIError
 from pypdf import PdfReader, PdfWriter
+from pypdf.errors import PdfReadError
 
 from ai_document_assistant.application import build_rag_assistant, index_uploaded_pdf
 from ai_document_assistant.assistant import ConfigurationError
@@ -79,6 +80,8 @@ def _index_upload(
     st.session_state["selected_page"] = 1
     st.session_state.pop("selected_citation", None)
     st.session_state.pop("document_search", None)
+    st.session_state.pop("document_search_term", None)
+    st.session_state.pop("document_search_index", None)
     st.session_state["messages"] = []
     return filename
 
@@ -94,6 +97,8 @@ def _clear_document() -> None:
         "selected_page",
         "selected_citation",
         "document_search",
+        "document_search_term",
+        "document_search_index",
         "messages",
     ):
         st.session_state.pop(key, None)
@@ -112,6 +117,13 @@ def _render_diagnostics(slot: Any, diagnostics: dict[str, object] | None) -> Non
         st.caption(f"Generation time: {float(diagnostics['generation_ms']):.1f} ms")
         st.caption(f"Total time: {float(diagnostics['total_ms']):.1f} ms")
         st.caption(f"Model: {diagnostics['model'] or 'configured provider'}")
+        if diagnostics.get("total_tokens") is not None:
+            st.caption(
+                "Tokens: "
+                f"{diagnostics['input_tokens']} in / "
+                f"{diagnostics['output_tokens']} out / "
+                f"{diagnostics['total_tokens']} total"
+            )
 
 
 def _display_sidebar() -> tuple[Any, Any]:
@@ -189,11 +201,17 @@ def _page_pdf(pdf_bytes: bytes, page_number: int) -> bytes:
 
 def _select_page(page_number: int) -> None:
     st.session_state["selected_page"] = page_number
+    st.session_state.pop("selected_citation", None)
 
 
 def _select_citation(citation: dict[str, object]) -> None:
     st.session_state["selected_page"] = int(citation["page_number"])
     st.session_state["selected_citation"] = citation
+
+
+def _move_search_match(direction: int, match_count: int) -> None:
+    current = int(st.session_state.get("document_search_index", 0))
+    st.session_state["document_search_index"] = (current + direction) % match_count
 
 
 @st.cache_data(show_spinner=False)
@@ -206,12 +224,15 @@ def _search_pdf(pdf_bytes: bytes, query: str) -> tuple[tuple[int, str], ...]:
     matches: list[tuple[int, str]] = []
     for page_number, page in enumerate(reader.pages, start=1):
         text = " ".join((page.extract_text() or "").split())
-        position = text.casefold().find(normalized_query)
-        if position < 0:
-            continue
-        start = max(0, position - 90)
-        end = min(len(text), position + len(query) + 150)
-        matches.append((page_number, text[start:end]))
+        search_start = 0
+        while True:
+            position = text.casefold().find(normalized_query, search_start)
+            if position < 0:
+                break
+            start = max(0, position - 90)
+            end = min(len(text), position + len(query) + 150)
+            matches.append((page_number, text[start:end]))
+            search_start = position + max(len(normalized_query), 1)
     return tuple(matches)
 
 
@@ -220,7 +241,7 @@ def _pdf_outline(pdf_bytes: bytes) -> tuple[tuple[str, int, int], ...]:
     reader = PdfReader(BytesIO(pdf_bytes))
     try:
         outline = reader.outline
-    except (AttributeError, ValueError):
+    except (AttributeError, PdfReadError, ValueError):
         return ()
 
     entries: list[tuple[str, int, int]] = []
@@ -233,7 +254,7 @@ def _pdf_outline(pdf_bytes: bytes) -> tuple[tuple[str, int, int], ...]:
             try:
                 page_number = reader.get_destination_page_number(item) + 1
                 title = str(item.title).strip()
-            except (AttributeError, TypeError, ValueError, IndexError):
+            except (AttributeError, PdfReadError, TypeError, ValueError, IndexError):
                 continue
             if title:
                 entries.append((title, page_number, level))
@@ -272,37 +293,67 @@ def _display_document_tools(pdf_bytes: bytes, source: str) -> None:
             placeholder="Find a word or phrase...",
         )
         if search_query.strip():
+            search_term = search_query.strip().casefold()
+            if search_term != st.session_state.get("document_search_term"):
+                st.session_state["document_search_term"] = search_term
+                st.session_state["document_search_index"] = 0
             results = _search_pdf(pdf_bytes, search_query)
             if not results:
                 st.caption("No matching pages found.")
             else:
-                st.caption(f"{len(results)} matching page(s)")
-                for index, (page_number, snippet) in enumerate(results[:8]):
-                    if st.button(
-                        f"Page {page_number}: {snippet[:100]}",
-                        key=f"search-result-{index}",
-                        use_container_width=True,
-                    ):
-                        _select_citation(
-                            {
-                                "source": source,
-                                "page_number": page_number,
-                                "text": snippet,
-                                "score": None,
-                            }
+                current_index = min(
+                    int(st.session_state.get("document_search_index", 0)),
+                    len(results) - 1,
+                )
+                st.session_state["document_search_index"] = current_index
+                st.caption(f"Match {current_index + 1} of {len(results)}")
+                if len(results) > 1:
+                    previous, following = st.columns(2)
+                    with previous:
+                        st.button(
+                            "Previous match",
+                            key="previous-search-match",
+                            use_container_width=True,
+                            on_click=_move_search_match,
+                            args=(-1, len(results)),
                         )
+                    with following:
+                        st.button(
+                            "Next match",
+                            key="next-search-match",
+                            use_container_width=True,
+                            on_click=_move_search_match,
+                            args=(1, len(results)),
+                        )
+
+                page_number, snippet = results[current_index]
+                st.button(
+                    f"Go to page {page_number}: {snippet[:140]}",
+                    key="current-search-match",
+                    use_container_width=True,
+                    on_click=_select_citation,
+                    args=(
+                        {
+                            "source": source,
+                            "page_number": page_number,
+                            "text": snippet,
+                            "score": None,
+                        },
+                    ),
+                )
 
         outline = _pdf_outline(pdf_bytes)
         if outline:
             st.caption("Table of contents")
             for index, (title, page_number, level) in enumerate(outline):
                 label = f"{'  ' * level}{title} (page {page_number})"
-                if st.button(
+                st.button(
                     label,
                     key=f"outline-{index}",
                     use_container_width=True,
-                ):
-                    _select_page(page_number)
+                    on_click=_select_page,
+                    args=(page_number,),
+                )
 
 
 def _display_document_viewer(*, reading_mode: bool = False) -> None:
@@ -349,7 +400,7 @@ def _display_document_viewer(*, reading_mode: bool = False) -> None:
     pdf_viewer(
         page_bytes,
         height=PDF_READING_HEIGHT if reading_mode else PDF_VIEWER_HEIGHT,
-        key="selected-page-viewer",
+        key=f"selected-page-viewer-{selected_page}",
         alt=f"Page {selected_page} of {source}",
     )
     st.caption("Use the embedded viewer controls for zoom and fit-to-width.")
@@ -368,12 +419,13 @@ def _display_citations(citations: list[dict[str, object]], key_prefix: str) -> N
             text = str(citation.get("text", "")).strip()
             if text:
                 st.write(text)
-            if st.button(
+            st.button(
                 "View this page",
                 key=f"{key_prefix}-citation-{index}",
                 use_container_width=True,
-            ):
-                _select_citation(citation)
+                on_click=_select_citation,
+                args=(citation,),
+            )
 
 
 def _display_answer(result: RAGAnswer, key_prefix: str) -> None:
@@ -423,6 +475,9 @@ def _diagnostics_payload(result: RAGAnswer) -> dict[str, object] | None:
         "generation_ms": result.diagnostics.generation_ms,
         "total_ms": result.diagnostics.total_ms,
         "model": result.diagnostics.model,
+        "input_tokens": result.diagnostics.input_tokens,
+        "output_tokens": result.diagnostics.output_tokens,
+        "total_tokens": result.diagnostics.total_tokens,
     }
 
 
@@ -453,16 +508,25 @@ def _display_chat_workspace(diagnostics_slot: Any) -> None:
         with st.chat_message("assistant"), st.status(
             "Preparing answer...", expanded=False
         ) as answer_status:
+            answer_placeholder = st.empty()
+            streamed_answer: list[str] = []
+
+            def render_token(token: str) -> None:
+                streamed_answer.append(token)
+                answer_placeholder.markdown("".join(streamed_answer))
+
             try:
                 answer_status.write("Retrieving supporting passages...")
                 answer_status.write("Generating a grounded answer...")
-                result = _get_assistant().answer(question)
+                result = _get_assistant().answer(question, on_token=render_token)
             except (OpenAIError, RuntimeError, ValueError):
+                answer_placeholder.empty()
                 answer_status.update(label="Answer failed", state="error")
                 logger.exception("Failed to answer a UI question")
                 st.error("The AI provider failed while answering the question.")
                 return
             answer_status.update(label="Answer ready", state="complete")
+            answer_placeholder.empty()
             _display_answer(result, f"current-{len(st.session_state['messages'])}")
             assistant_message["content"] = result.answer
             assistant_message["citations"] = [

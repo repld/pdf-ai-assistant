@@ -39,6 +39,24 @@ class FakeAnswerer:
         return "Python is a programming language. [1]"
 
 
+@dataclass
+class StreamingFakeAnswerer:
+    def answer(self, question: str, context: list[DocumentChunk]) -> str:
+        return "Python is a programming language. [1]"
+
+    def answer_stream(
+        self,
+        question: str,
+        context: list[DocumentChunk],
+        on_token: object,
+    ) -> str:
+        assert callable(on_token)
+        on_token("Python is a programming language. ")
+        on_token("[1]")
+        self.last_usage = {"input_tokens": 20, "output_tokens": 8, "total_tokens": 28}
+        return "Python is a programming language. [1]"
+
+
 def test_rag_assistant_retrieves_context_and_returns_citations() -> None:
     answerer = FakeAnswerer([], [])
     assistant = RAGAssistant(
@@ -112,6 +130,23 @@ def test_rag_assistant_records_request_metrics() -> None:
     assert observation.attributes["status"] == "success"
     assert observation.attributes["retrieved_count"] == 1
     assert observation.attributes["citation_count"] == 1
+
+
+def test_rag_assistant_streams_when_answerer_supports_it() -> None:
+    answerer = StreamingFakeAnswerer()
+    assistant = RAGAssistant(
+        embedder=FakeEmbedder(),
+        answerer=answerer,
+        min_score=0.5,
+    )
+    assistant.index([chunk("python", "Python is a programming language.")])
+    tokens: list[str] = []
+
+    result = assistant.answer("What is Python?", on_token=tokens.append)
+
+    assert tokens == ["Python is a programming language. ", "[1]"]
+    assert result.diagnostics is not None
+    assert result.diagnostics.total_tokens == 28
 
 
 def test_rag_assistant_declines_when_no_relevant_context_exists() -> None:
