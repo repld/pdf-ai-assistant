@@ -188,6 +188,39 @@ def _display_sidebar() -> tuple[Any, Any]:
     return diagnostics_slot, uploaded_file
 
 
+def _display_dashboard_header() -> Any:
+    """Display the compact workspace header and return its status slot."""
+
+    source = st.session_state.get("indexed_source")
+    page_count = int(st.session_state.get("indexed_page_count", 0))
+    if source:
+        state_label = "Document ready"
+        state_detail = f"{source} · {page_count} pages indexed"
+        state_class = "dashboard-state-ready"
+    else:
+        state_label = "No document loaded"
+        state_detail = "Upload a PDF from the sidebar to begin"
+        state_class = "dashboard-state-empty"
+
+    st.markdown(
+        f"""
+        <div class='dashboard-header'>
+            <div class='dashboard-copy'>
+                <div class='dashboard-eyebrow'>AI DOCUMENT ASSISTANT</div>
+                <h1>AI Document Assistant</h1>
+                <p>Read your PDF and ask grounded questions with page-level citations.</p>
+            </div>
+            <div class='dashboard-state {state_class}'>
+                <strong>{escape(state_label)}</strong>
+                <span>{escape(state_detail)}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    return st.empty()
+
+
 @st.cache_data(show_spinner=False)
 def _page_pdf(pdf_bytes: bytes, page_number: int) -> bytes:
     """Return one page as a standalone PDF for the viewer."""
@@ -581,19 +614,87 @@ def main() -> None:
             border-radius: 0.85rem;
             box-shadow: 0 0 0 3px rgba(79, 139, 249, 0.10);
         }
+        .block-container {
+            padding-top: 1.25rem;
+        }
+        .dashboard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+            padding: 1rem 1.25rem;
+            border: 1px solid rgba(79, 139, 249, 0.25);
+            border-radius: 1rem;
+            background: linear-gradient(135deg, rgba(79, 139, 249, 0.12), rgba(79, 139, 249, 0.03));
+        }
+        .dashboard-copy h1 {
+            margin: 0.1rem 0 0.25rem;
+            font-size: clamp(1.45rem, 2.5vw, 2rem);
+        }
+        .dashboard-copy p {
+            margin: 0;
+            color: rgba(128, 128, 128, 0.95);
+            font-size: 0.9rem;
+        }
+        .dashboard-eyebrow {
+            color: #2563eb;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+        }
+        .dashboard-state {
+            display: flex;
+            min-width: 12rem;
+            flex-direction: column;
+            gap: 0.2rem;
+            padding: 0.75rem 0.9rem;
+            border-radius: 0.75rem;
+            font-size: 0.8rem;
+        }
+        .dashboard-state strong {
+            font-size: 0.9rem;
+        }
+        .dashboard-state span {
+            color: rgba(128, 128, 128, 0.95);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .dashboard-state-ready {
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            background: rgba(34, 197, 94, 0.1);
+        }
+        .dashboard-state-ready strong {
+            color: #15803d;
+        }
+        .dashboard-state-empty {
+            border: 1px solid rgba(128, 128, 128, 0.25);
+            background: rgba(128, 128, 128, 0.08);
+        }
+        @media (max-width: 700px) {
+            .dashboard-header {
+                align-items: stretch;
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            .dashboard-state {
+                min-width: 0;
+            }
+        }
         </style>
         """,
         unsafe_allow_html=True,
     )
-    st.title("AI Document Assistant")
-    st.write("Upload a PDF, then ask questions that are answered using its contents.")
-
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
 
     diagnostics_slot, uploaded_file = _display_sidebar()
+    dashboard_status_slot = _display_dashboard_header()
     if uploaded_file is not None:
-        with st.status("Indexing document...", expanded=True) as indexing_status:
+        with dashboard_status_slot.container(), st.status(
+            "Indexing document...", expanded=True
+        ) as indexing_status:
             try:
                 source = _index_upload(uploaded_file, progress=indexing_status.write)
             except ConfigurationError as error:
@@ -617,12 +718,12 @@ def main() -> None:
                 st.error("Document processing produced an invalid embedding response.")
             else:
                 indexing_status.update(label="Document ready", state="complete")
-                st.success(
-                    f"Ready: {source} ({st.session_state['indexed_page_count']} pages indexed)."
+                st.caption(
+                    f"Ready: {source} · {st.session_state['indexed_page_count']} pages indexed"
                 )
 
     if st.session_state.get("indexed_source") is None:
-        st.info("Upload a PDF using the sidebar to start reading and asking questions.")
+        st.caption("Your reader and question workspace will appear here after indexing.")
         return
 
     if st.session_state.get("reading_mode", False):
