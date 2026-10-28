@@ -7,6 +7,7 @@ import json
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
+from html import escape
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -21,8 +22,14 @@ from ai_document_assistant.documents import DocumentError
 from ai_document_assistant.rag import RAGAnswer, RAGAssistant
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
-CHAT_PANEL_HEIGHT = 800
-PDF_VIEWER_HEIGHT = 500
+CHAT_PANEL_HEIGHT = 500
+PDF_VIEWER_HEIGHT = 720
+PDF_READING_HEIGHT = 900
+LAYOUT_RATIOS = {
+    "Reader focus (65/35)": [1.7, 0.9],
+    "Balanced (50/50)": [1.0, 1.0],
+    "Chat focus (35/65)": [0.9, 1.7],
+}
 SUGGESTED_QUESTIONS = (
     "What is the main idea of this document?",
     "List every major concept covered in the document.",
@@ -75,6 +82,8 @@ def _index_upload(
     st.session_state["indexed_chunk_count"] = summary.chunk_count
     st.session_state["pdf_bytes"] = content
     st.session_state["selected_page"] = 1
+    st.session_state.pop("selected_citation", None)
+    st.session_state.pop("document_search", None)
     st.session_state["messages"] = []
     return filename
 
@@ -88,13 +97,30 @@ def _clear_document() -> None:
         "indexed_chunk_count",
         "pdf_bytes",
         "selected_page",
+        "selected_citation",
+        "document_search",
         "messages",
     ):
         st.session_state.pop(key, None)
     st.rerun()
 
 
-def _display_sidebar() -> None:
+def _render_diagnostics(slot: Any, diagnostics: dict[str, object] | None) -> None:
+    slot.empty()
+    if not diagnostics:
+        return
+
+    with slot.container(), st.expander("Diagnostics", expanded=False):
+        st.caption(f"Retrieved chunks: {diagnostics['retrieved_count']}")
+        st.caption(f"Cited sources: {diagnostics['citation_count']}")
+        st.caption(f"Retrieval time: {float(diagnostics['retrieval_ms']):.1f} ms")
+        st.caption(f"Generation time: {float(diagnostics['generation_ms']):.1f} ms")
+        st.caption(f"Total time: {float(diagnostics['total_ms']):.1f} ms")
+        st.caption(f"Model: {diagnostics['model'] or 'configured provider'}")
+
+
+def _display_sidebar() -> Any:
+    latest_diagnostics: dict[str, object] | None = None
     with st.sidebar:
         st.header("Document")
         source = st.session_state.get("indexed_source")
@@ -126,6 +152,29 @@ def _display_sidebar() -> None:
                 use_container_width=True,
             )
 
+        with st.expander("Workspace controls", expanded=False):
+            st.selectbox(
+                "Layout",
+                list(LAYOUT_RATIOS),
+                index=0,
+                key="workspace_layout",
+                help="Choose how much space the book and assistant receive.",
+            )
+            st.checkbox(
+                "Full-screen reading mode",
+                key="reading_mode",
+                help="Show the book at full width and move the assistant below it.",
+            )
+
+        for message in reversed(st.session_state.get("messages", [])):
+            if message.get("role") == "assistant" and message.get("diagnostics"):
+                latest_diagnostics = message["diagnostics"]
+                break
+
+    diagnostics_slot = st.sidebar.empty()
+    _render_diagnostics(diagnostics_slot, latest_diagnostics)
+    return diagnostics_slot
+
 
 @st.cache_data(show_spinner=False)
 def _page_pdf(pdf_bytes: bytes, page_number: int) -> bytes:
@@ -146,7 +195,119 @@ def _select_page(page_number: int) -> None:
     st.session_state["selected_page"] = page_number
 
 
-def _display_document_viewer() -> None:
+def _select_citation(citation: dict[str, object]) -> None:
+    st.session_state["selected_page"] = int(citation["page_number"])
+    st.session_state["selected_citation"] = citation
+
+
+@st.cache_data(show_spinner=False)
+def _search_pdf(pdf_bytes: bytes, query: str) -> tuple[tuple[int, str], ...]:
+    normalized_query = query.strip().casefold()
+    if not normalized_query:
+        return ()
+
+    reader = PdfReader(BytesIO(pdf_bytes))
+    matches: list[tuple[int, str]] = []
+    for page_number, page in enumerate(reader.pages, start=1):
+        text = " ".join((page.extract_text() or "").split())
+        position = text.casefold().find(normalized_query)
+        if position < 0:
+            continue
+        start = max(0, position - 90)
+        end = min(len(text), position + len(query) + 150)
+        matches.append((page_number, text[start:end]))
+    return tuple(matches)
+
+
+@st.cache_data(show_spinner=False)
+def _pdf_outline(pdf_bytes: bytes) -> tuple[tuple[str, int, int], ...]:
+    reader = PdfReader(BytesIO(pdf_bytes))
+    try:
+        outline = reader.outline
+    except (AttributeError, ValueError):
+        return ()
+
+    entries: list[tuple[str, int, int]] = []
+
+    def visit(items: list[object], level: int = 0) -> None:
+        for item in items:
+            if isinstance(item, list):
+                visit(item, level + 1)
+                continue
+            try:
+                page_number = reader.get_destination_page_number(item) + 1
+                title = str(item.title).strip()
+            except (AttributeError, TypeError, ValueError, IndexError):
+                continue
+            if title:
+                entries.append((title, page_number, level))
+
+    if isinstance(outline, list):
+        visit(outline)
+    return tuple(entries)
+
+
+def _display_selected_excerpt() -> None:
+    citation = st.session_state.get("selected_citation")
+    if not citation or not str(citation.get("text", "")).strip():
+        return
+
+    source = str(citation.get("source", "document"))
+    page_number = int(citation["page_number"])
+    excerpt = escape(str(citation["text"]).strip())
+    st.caption(f"Supporting excerpt from page {page_number}")
+    st.markdown(
+        f"<div style='padding:0.75rem;border-left:4px solid #4f8bf9;"
+        f"background-color:rgba(79,139,249,0.10);'><mark>{excerpt}</mark></div>",
+        unsafe_allow_html=True,
+    )
+    if st.button("Clear highlighted excerpt", key="clear-selected-citation"):
+        st.session_state.pop("selected_citation", None)
+        st.rerun()
+    st.caption(f"{source} - page {page_number}")
+
+
+def _display_document_tools(pdf_bytes: bytes, source: str) -> None:
+    search_query = st.text_input(
+        "Search within book",
+        key="document_search",
+        placeholder="Find a word or phrase...",
+    )
+    if search_query.strip():
+        results = _search_pdf(pdf_bytes, search_query)
+        if not results:
+            st.caption("No matching pages found.")
+        else:
+            st.caption(f"{len(results)} matching page(s)")
+            for index, (page_number, snippet) in enumerate(results[:8]):
+                if st.button(
+                    f"Page {page_number}: {snippet[:100]}",
+                    key=f"search-result-{index}",
+                    use_container_width=True,
+                ):
+                    _select_citation(
+                        {
+                            "source": source,
+                            "page_number": page_number,
+                            "text": snippet,
+                            "score": None,
+                        }
+                    )
+
+    outline = _pdf_outline(pdf_bytes)
+    if outline:
+        with st.expander("Table of contents", expanded=False):
+            for index, (title, page_number, level) in enumerate(outline):
+                label = f"{'  ' * level}{title} (page {page_number})"
+                if st.button(
+                    label,
+                    key=f"outline-{index}",
+                    use_container_width=True,
+                ):
+                    _select_page(page_number)
+
+
+def _display_document_viewer(*, reading_mode: bool = False) -> None:
     """Display the selected source page beside the conversation."""
 
     pdf_bytes = st.session_state.get("pdf_bytes")
@@ -155,7 +316,7 @@ def _display_document_viewer() -> None:
     if not pdf_bytes or page_count <= 0:
         return
 
-    st.subheader("Reference document")
+    st.subheader("Book")
     if int(st.session_state.get("selected_page", 1)) > page_count:
         st.session_state["selected_page"] = 1
     selected_page = st.number_input(
@@ -166,6 +327,8 @@ def _display_document_viewer() -> None:
         key="selected_page",
     )
     st.caption(f"{source} - page {selected_page} of {page_count}")
+    _display_document_tools(pdf_bytes, source)
+    _display_selected_excerpt()
 
     try:
         page_bytes = _page_pdf(pdf_bytes, selected_page)
@@ -187,10 +350,11 @@ def _display_document_viewer() -> None:
 
     pdf_viewer(
         page_bytes,
-        height=PDF_VIEWER_HEIGHT,
+        height=PDF_READING_HEIGHT if reading_mode else PDF_VIEWER_HEIGHT,
         key="selected-page-viewer",
         alt=f"Page {selected_page} of {source}",
     )
+    st.caption("Use the embedded viewer controls for zoom and fit-to-width.")
 
 
 def _display_citations(citations: list[dict[str, object]], key_prefix: str) -> None:
@@ -211,11 +375,11 @@ def _display_citations(citations: list[dict[str, object]], key_prefix: str) -> N
                 key=f"{key_prefix}-citation-{index}",
                 use_container_width=True,
             ):
-                _select_page(page_number)
+                _select_citation(citation)
 
 
 def _display_answer(result: RAGAnswer, key_prefix: str) -> None:
-    """Display an answer, its page citations, and retrieval diagnostics."""
+    """Display an answer and its page citations."""
 
     st.markdown(result.answer)
     if result.citations:
@@ -231,16 +395,6 @@ def _display_answer(result: RAGAnswer, key_prefix: str) -> None:
             ],
             key_prefix,
         )
-    with st.expander("Retrieval details"):
-        st.caption(f"Retrieved chunks: {len(result.retrieved_chunk_ids)}")
-        st.caption(f"Cited sources: {len(result.citations)}")
-        if result.diagnostics:
-            st.caption(f"Retrieval time: {result.diagnostics.retrieval_ms:.1f} ms")
-            st.caption(f"Generation time: {result.diagnostics.generation_ms:.1f} ms")
-            st.caption(f"Total time: {result.diagnostics.total_ms:.1f} ms")
-            st.caption(f"Model: {result.diagnostics.model or 'configured provider'}")
-
-
 def _display_feedback(message: dict[str, object], key_prefix: str) -> None:
     feedback_widget = getattr(st, "feedback", None)
     if feedback_widget is None:
@@ -276,10 +430,76 @@ def _display_chat_history() -> None:
                 _display_feedback(message, f"history-{index}")
 
 
+def _diagnostics_payload(result: RAGAnswer) -> dict[str, object] | None:
+    if result.diagnostics is None:
+        return None
+    return {
+        "retrieved_count": len(result.retrieved_chunk_ids),
+        "citation_count": len(result.citations),
+        "retrieval_ms": result.diagnostics.retrieval_ms,
+        "generation_ms": result.diagnostics.generation_ms,
+        "total_ms": result.diagnostics.total_ms,
+        "model": result.diagnostics.model,
+    }
+
+
+def _display_chat_workspace(diagnostics_slot: Any) -> None:
+    st.subheader("Ask questions")
+    chat_panel = st.container(height=CHAT_PANEL_HEIGHT, border=True)
+    with chat_panel:
+        _display_chat_history()
+
+    suggested_question = _display_suggested_questions()
+    question = suggested_question or st.chat_input("Ask a question about the book")
+    if question is None:
+        return
+
+    st.session_state["messages"].append({"role": "user", "content": question})
+    with chat_panel:
+        with st.chat_message("user"):
+            st.markdown(question)
+
+        assistant_message: dict[str, object] = {
+            "role": "assistant",
+            "question": question,
+        }
+        with st.chat_message("assistant"), st.status(
+            "Preparing answer...", expanded=False
+        ) as answer_status:
+            try:
+                answer_status.write("Retrieving supporting passages...")
+                answer_status.write("Generating a grounded answer...")
+                result = _get_assistant().answer(question)
+            except (OpenAIError, RuntimeError, ValueError):
+                answer_status.update(label="Answer failed", state="error")
+                logger.exception("Failed to answer a UI question")
+                st.error("The AI provider failed while answering the question.")
+                return
+            answer_status.update(label="Answer ready", state="complete")
+            _display_answer(result, f"current-{len(st.session_state['messages'])}")
+            assistant_message["content"] = result.answer
+            assistant_message["citations"] = [
+                {
+                    "source": citation.source,
+                    "page_number": citation.page_number,
+                    "text": citation.text,
+                    "score": citation.score,
+                }
+                for citation in result.citations
+            ]
+            diagnostics = _diagnostics_payload(result)
+            if diagnostics:
+                assistant_message["diagnostics"] = diagnostics
+                _render_diagnostics(diagnostics_slot, diagnostics)
+            _display_feedback(assistant_message, "current-answer")
+
+    st.session_state["messages"].append(assistant_message)
+
+
 def main() -> None:
     """Render the Streamlit document chat application."""
 
-    st.set_page_config(page_title="AI Document Assistant", page_icon="PDF")
+    st.set_page_config(page_title="AI Document Assistant", page_icon="PDF", layout="wide")
     st.title("AI Document Assistant")
     st.write("Upload a PDF, then ask questions that are answered using its contents.")
 
@@ -316,61 +536,24 @@ def main() -> None:
                     f"Ready: {source} ({st.session_state['indexed_page_count']} pages indexed)."
                 )
 
-    _display_sidebar()
+    diagnostics_slot = _display_sidebar()
 
     if st.session_state.get("indexed_source") is None:
         st.info("Upload a PDF to start asking questions.")
         return
 
-    document_column, chat_column = st.columns([0.75, 1.7], gap="large")
+    if st.session_state.get("reading_mode", False):
+        _display_document_viewer(reading_mode=True)
+        with st.expander("Ask the assistant", expanded=False):
+            _display_chat_workspace(diagnostics_slot)
+        return
+
+    layout = st.session_state.get("workspace_layout", "Reader focus (65/35)")
+    document_column, chat_column = st.columns(LAYOUT_RATIOS[layout], gap="large")
     with document_column:
         _display_document_viewer()
-
     with chat_column:
-        st.subheader("Ask questions")
-        chat_panel = st.container(height=CHAT_PANEL_HEIGHT, border=True)
-        with chat_panel:
-            _display_chat_history()
-        suggested_question = _display_suggested_questions()
-        question = suggested_question or st.chat_input("Ask a question about the PDF")
-        if question is None:
-            return
-
-        st.session_state["messages"].append({"role": "user", "content": question})
-        with chat_panel:
-            with st.chat_message("user"):
-                st.markdown(question)
-
-            assistant_message: dict[str, object] = {
-                "role": "assistant",
-                "question": question,
-            }
-            with st.chat_message("assistant"), st.status(
-                "Preparing answer...", expanded=False
-            ) as answer_status:
-                try:
-                    answer_status.write("Searching the document...")
-                    result = _get_assistant().answer(question)
-                except (OpenAIError, RuntimeError, ValueError):
-                    answer_status.update(label="Answer failed", state="error")
-                    logger.exception("Failed to answer a UI question")
-                    st.error("The AI provider failed while answering the question.")
-                    return
-                answer_status.update(label="Answer ready", state="complete")
-                _display_answer(result, f"current-{len(st.session_state['messages'])}")
-                assistant_message["content"] = result.answer
-                assistant_message["citations"] = [
-                    {
-                        "source": citation.source,
-                        "page_number": citation.page_number,
-                        "text": citation.text,
-                        "score": citation.score,
-                    }
-                    for citation in result.citations
-                ]
-                _display_feedback(assistant_message, "current-answer")
-
-        st.session_state["messages"].append(assistant_message)
+        _display_chat_workspace(diagnostics_slot)
 
 
 if __name__ == "__main__":

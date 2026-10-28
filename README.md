@@ -7,7 +7,9 @@ Live demo: [pdfaiassist.streamlit.app](https://pdfaiassist.streamlit.app/)
 ## Features
 
 - Streamlit browser interface for PDF upload and chat
-- Side-by-side PDF page viewer linked to answer citations
+- Reader-focused PDF workspace with a secondary question panel
+- Citation-driven page navigation and highlighted supporting excerpts
+- Search, table-of-contents navigation, layout controls, and reading mode
 - Indexing progress, document metadata, suggested questions, and answer feedback
 - PDF text extraction with page metadata preserved for citations
 - Overlapping text chunking
@@ -59,7 +61,7 @@ streamlit run src\ai_document_assistant\ui.py
 
 On Windows, double-click `start-assistant.vbs` to start the application without leaving a command window open. Upload a PDF, wait for indexing to finish, and ask questions in the chat interface.
 
-The browser interface prioritizes the chat while keeping the selected cited page available as a compact reference panel. The conversation uses a fixed-height scrollable panel so long answers and source cards do not push the question input indefinitely down the page. Citation buttons change the page shown in the viewer. The current document and messages stay in memory for that browser session; restarting the app clears the session.
+The browser interface prioritizes the book while keeping the question panel available beside it. Citation buttons navigate to the cited page and show the exact retrieved excerpt beside the PDF. The reader includes page navigation, document search, optional outline navigation, a full-screen reading mode, and native viewer controls for zoom and fit-to-width. The conversation uses a fixed-height scrollable panel so long answers and source cards do not push the question input indefinitely down the page. The current document and messages stay in memory for that browser session; restarting the app clears the session.
 
 ## Run the command-line application
 
